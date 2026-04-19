@@ -10,17 +10,21 @@ import NotFound from "./pages/NotFound.tsx";
 import SchedulePage from "./pages/SchedulePage.tsx";
 import AIChatPage from "./pages/AIChatPage.tsx";
 import OrdersPage from "./pages/OrdersPage.tsx";
+import SubstitutionsPage from "./pages/SubstitutionsPage.tsx";
+import IncidentsPage from "./pages/IncidentsPage.tsx";
+import ChatsPage from "./pages/ChatsPage.tsx";
+import NfcPage from "./pages/NfcPage.tsx";
+import ReportsPage from "./pages/ReportsPage.tsx";
 import { SplashScreen } from "./components/SplashScreen.tsx";
 import { PlaceholderPage } from "./components/PlaceholderPage.tsx";
-import { Users, GraduationCap, ClipboardList, AlertTriangle, MessageSquare, BookOpen, Radio, Settings } from "lucide-react";
+import { Users, GraduationCap, ClipboardList, BookOpen, Settings } from "lucide-react";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem("aqbobek_splash_seen"));
-
+  const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem("mektep_splash_seen"));
   const dismiss = () => {
-    sessionStorage.setItem("aqbobek_splash_seen", "1");
+    sessionStorage.setItem("mektep_splash_seen", "1");
     setShowSplash(false);
   };
 
@@ -36,14 +40,16 @@ const App = () => {
             <Route path="/schedule" element={<SchedulePage />} />
             <Route path="/ai-chat" element={<AIChatPage />} />
             <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/staff" element={<PlaceholderPage title="Сотрудники" description="20 сотрудников школы" icon={<Users className="h-8 w-8 text-primary" />} />} />
-            <Route path="/classes" element={<PlaceholderPage title="Классы" description="12 классов 1-4" icon={<GraduationCap className="h-8 w-8 text-primary" />} />} />
-            <Route path="/attendance" element={<PlaceholderPage title="Посещаемость" description="Учёт по классам и NFC" icon={<BookOpen className="h-8 w-8 text-primary" />} />} />
-            <Route path="/tasks" element={<PlaceholderPage title="Задачи" description="Голосовая постановка задач" icon={<ClipboardList className="h-8 w-8 text-primary" />} />} />
-            <Route path="/incidents" element={<PlaceholderPage title="Инциденты" description="Из чатов TG/WA" icon={<AlertTriangle className="h-8 w-8 text-primary" />} />} />
-            <Route path="/chats" element={<PlaceholderPage title="Чаты Telegram/WhatsApp" description="История диалогов с учителями" icon={<MessageSquare className="h-8 w-8 text-primary" />} />} />
-            <Route path="/nfc" element={<PlaceholderPage title="NFC журнал" description="Сканирование карт учеников" icon={<Radio className="h-8 w-8 text-primary" />} />} />
-            <Route path="/settings" element={<PlaceholderPage title="Настройки" description="Telegram, Green API (WhatsApp), профиль" icon={<Settings className="h-8 w-8 text-primary" />} />} />
+            <Route path="/substitutions" element={<SubstitutionsPage />} />
+            <Route path="/incidents" element={<IncidentsPage />} />
+            <Route path="/chats" element={<ChatsPage />} />
+            <Route path="/nfc" element={<NfcPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/staff" element={<PlaceholderPage title="Сотрудники" description="43 педагога Aqbobek Lyceum" icon={<Users className="h-8 w-8 text-primary" />} />} />
+            <Route path="/classes" element={<PlaceholderPage title="Классы" description="13 классов 7-11" icon={<GraduationCap className="h-8 w-8 text-primary" />} />} />
+            <Route path="/attendance" element={<PlaceholderPage title="Посещаемость" description="См. раздел AI-отчёты" icon={<BookOpen className="h-8 w-8 text-primary" />} />} />
+            <Route path="/tasks" element={<PlaceholderPage title="Задачи" description="Голосовая постановка из AI-чата" icon={<ClipboardList className="h-8 w-8 text-primary" />} />} />
+            <Route path="/settings" element={<PlaceholderPage title="Настройки" description="Telegram · Green API · профиль" icon={<Settings className="h-8 w-8 text-primary" />} />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
