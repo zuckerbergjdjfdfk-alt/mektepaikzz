@@ -34,7 +34,7 @@ export const SplashScreen = ({ onDone }: { onDone: () => void }) => {
           transition={{ delay: 0.4, duration: 0.6 }}
           className="font-display text-6xl font-extrabold tracking-tight text-primary-foreground"
         >
-          Aqbobek <span className="text-secondary">AI</span>
+          Mektep <span className="text-secondary">AI</span>
         </motion.h1>
 
         <motion.p
@@ -43,7 +43,7 @@ export const SplashScreen = ({ onDone }: { onDone: () => void }) => {
           transition={{ delay: 0.6, duration: 0.6 }}
           className="mt-4 text-lg text-primary-foreground/80"
         >
-          Цифровой завуч школы · Mektep AI Orchestrator
+          Цифровой завуч · Aqbobek Lyceum · Алматы
         </motion.p>
 
         <motion.div

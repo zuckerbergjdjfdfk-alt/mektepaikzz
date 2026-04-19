@@ -18,6 +18,7 @@ const mainItems = [
 
 const opsItems = [
   { title: "Задачи", url: "/tasks", icon: ClipboardList },
+  { title: "Замены", url: "/substitutions", icon: Users, badge: "AI" },
   { title: "Инциденты", url: "/incidents", icon: AlertTriangle },
   { title: "Чаты TG/WA", url: "/chats", icon: MessageSquare },
   { title: "NFC журнал", url: "/nfc", icon: Radio },
@@ -26,6 +27,7 @@ const opsItems = [
 const aiItems = [
   { title: "AI-чат", url: "/ai-chat", icon: Bot, badge: "★" },
   { title: "Приказы", url: "/orders", icon: FileText },
+  { title: "AI-отчёты", url: "/reports", icon: BookOpen },
 ];
 
 export function AppSidebar() {
@@ -65,8 +67,8 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div>
-              <div className="font-display text-lg font-bold text-sidebar-foreground">Aqbobek AI</div>
-              <div className="text-[11px] text-sidebar-foreground/60">Цифровой завуч</div>
+              <div className="font-display text-lg font-bold text-sidebar-foreground">Mektep AI</div>
+              <div className="text-[11px] text-sidebar-foreground/60">Aqbobek Lyceum</div>
             </div>
           )}
         </div>
