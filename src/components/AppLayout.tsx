@@ -1,0 +1,42 @@
+import { ReactNode } from "react";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "./AppSidebar";
+import { Bell, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Link } from "react-router-dom";
+
+export const AppLayout = ({ children }: { children: ReactNode }) => {
+  return (
+    <SidebarProvider defaultOpen>
+      <div className="flex min-h-screen w-full bg-background">
+        <AppSidebar />
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border bg-background/80 px-4 backdrop-blur-xl">
+            <SidebarTrigger className="text-foreground" />
+            <div className="flex-1 flex items-center gap-3 max-w-xl">
+              <div className="relative w-full">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Поиск по сотрудникам, классам, приказам..."
+                  className="pl-9 bg-muted/40 border-transparent focus-visible:bg-background"
+                />
+              </div>
+            </div>
+            <Link to="/ai-chat">
+              <Button variant="outline" size="sm" className="gap-2">
+                <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
+                AI онлайн
+              </Button>
+            </Link>
+            <Button variant="ghost" size="icon" className="relative">
+              <Bell className="h-5 w-5" />
+              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive" />
+            </Button>
+          </header>
+          <main className="flex-1 overflow-x-hidden">{children}</main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+};
