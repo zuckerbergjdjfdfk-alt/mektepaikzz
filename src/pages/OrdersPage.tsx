@@ -169,9 +169,9 @@ const OrdersPage = () => {
               <span className="font-display font-bold text-sm">Предпросмотр приказа</span>
               {generated && <Badge className="ml-auto bg-success text-success-foreground text-[10px]">Готов</Badge>}
             </div>
-            <div className="overflow-y-auto p-8 flex-1 bg-white text-gray-900">
+            <div className="overflow-y-auto p-8 flex-1 bg-card text-foreground">
               {generated ? (
-                <div className="prose prose-sm max-w-none" style={{ fontFamily: "Georgia, serif" }}>
+                <div className="prose prose-sm max-w-none dark:prose-invert" style={{ fontFamily: "Georgia, serif" }}>
                   <ReactMarkdown>{generated}</ReactMarkdown>
                 </div>
               ) : (
