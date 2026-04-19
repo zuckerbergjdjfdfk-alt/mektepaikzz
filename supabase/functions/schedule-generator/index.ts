@@ -1,26 +1,27 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// Генератор расписания v2: реальная нагрузка из curriculum, ленты по английскому,
+// учёт нагрузки учителей, кабинетов, окон. Цель — собрать за <10 секунд.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
+const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Простой жадный генератор расписания с поддержкой лент
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+const DAYS = 5;
+const PERIODS = 7;
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  const t0 = Date.now();
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const [classesR, subjectsR, teachersR, roomsR, currR] = await Promise.all([
-      supabase.from("classes").select("*").order("name"),
-      supabase.from("subjects").select("*"),
-      supabase.from("staff").select("*").eq("role", "teacher"),
-      supabase.from("rooms").select("*"),
-      supabase.from("curriculum").select("*"),
+      sb.from("classes").select("*").order("grade").order("letter"),
+      sb.from("subjects").select("*"),
+      sb.from("staff").select("*").eq("role", "teacher"),
+      sb.from("rooms").select("*"),
+      sb.from("curriculum").select("*"),
     ]);
 
     const classes = classesR.data || [];
@@ -30,72 +31,90 @@ serve(async (req) => {
     const curriculum = currR.data || [];
 
     const subjectById = new Map(subjects.map((s: any) => [s.id, s]));
-    const subjectByName = new Map(subjects.map((s: any) => [s.short_name, s]));
-    const langLabs = rooms.filter((r: any) => r.type === "language_lab");
-    const standardRooms = new Map<string, any>();
-    classes.forEach((c: any) => {
-      const room = rooms.find((r: any) => r.number === `${c.grade}${c.letter === "А" ? "1" : c.letter === "Б" ? "2" : "3"}`);
-      if (room) standardRooms.set(c.id, room);
-    });
+    const classById = new Map(classes.map((c: any) => [c.id, c]));
+    const labRooms = rooms.filter((r: any) => r.type === "language_lab");
+    const standardRooms = rooms.filter((r: any) => r.type === "standard" || !r.type);
 
-    // Очищаем текущее расписание
-    await supabase.from("schedule_slots").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    // Очистка
+    await sb.from("schedule_slots").delete().gte("day_of_week", 0);
 
-    const DAYS = 5;
-    const PERIODS = 6;
-    const slots: any[] = [];
-
-    // Учётчики занятости: teacher[day][period], room[day][period]
+    // Учёт занятости
+    const busy = (m: Map<string, Set<string>>, id: string, d: number, p: number) => m.get(id)?.has(`${d}-${p}`);
+    const occupy = (m: Map<string, Set<string>>, id: string, d: number, p: number) => {
+      if (!m.has(id)) m.set(id, new Set());
+      m.get(id)!.add(`${d}-${p}`);
+    };
     const teacherBusy = new Map<string, Set<string>>();
     const roomBusy = new Map<string, Set<string>>();
     const classBusy = new Map<string, Set<string>>();
     const teacherDayLoad = new Map<string, Map<number, number>>();
 
-    const key = (d: number, p: number) => `${d}-${p}`;
-    const isFree = (map: Map<string, Set<string>>, id: string, d: number, p: number) =>
-      !map.get(id)?.has(key(d, p));
-    const occupy = (map: Map<string, Set<string>>, id: string, d: number, p: number) => {
-      if (!map.has(id)) map.set(id, new Set());
-      map.get(id)!.add(key(d, p));
+    const slots: any[] = [];
+
+    // Найти учителей, ведущих предмет в данном классе
+    const teachersForSubjectClass = (subjId: string, cls: any) => {
+      const subj = subjectById.get(subjId) as any;
+      if (!subj) return [];
+      const sname = subj.name.toLowerCase();
+      return teachers.filter((t: any) =>
+        (t.subjects || []).some((s: string) => {
+          const ts = s.toLowerCase();
+          return ts === sname || ts.includes(sname) || sname.includes(ts);
+        })
+      );
     };
 
-    const englishSubject = subjectByName.get("Англ");
+    // Подходящий кабинет
+    const pickRoom = (subj: any, cls: any, d: number, p: number) => {
+      // 1. lab для английского
+      if (subj.is_lenta || subj.name.toLowerCase().includes("ағылшын")) {
+        const lab = labRooms.find((r: any) => !busy(roomBusy, r.id, d, p));
+        if (lab) return lab;
+      }
+      // 2. кабинет, привязанный к классу/учителю
+      const matched = standardRooms.find((r: any) => 
+        r.name && subj.name.toLowerCase().includes(r.name.toLowerCase()) && !busy(roomBusy, r.id, d, p)
+      );
+      if (matched) return matched;
+      // 3. любой свободный
+      return standardRooms.find((r: any) => !busy(roomBusy, r.id, d, p));
+    };
 
-    // Сначала ставим ленты по английскому: для каждой параллели — 3 ленты в неделю на одинаковом слоте
-    if (englishSubject) {
-      const parallels = [...new Set(classes.map((c: any) => c.grade))];
-      for (const grade of parallels) {
-        const parallelClasses = classes.filter((c: any) => c.grade === grade);
-        const englishTeachers = teachers.filter((t: any) => t.subjects?.includes("Английский язык"));
-        if (englishTeachers.length < 2 || langLabs.length < 2) continue;
+    // ===== ФАЗА 1: Ленты по английскому для параллелей =====
+    const englishSubj = subjects.find((s: any) => s.is_lenta || s.name.toLowerCase().includes("ағылшын"));
+    if (englishSubj && labRooms.length >= 2) {
+      const grades = [...new Set(classes.map((c: any) => c.grade))];
+      for (const grade of grades) {
+        const parClasses = classes.filter((c: any) => c.grade === grade);
+        if (parClasses.length < 2) continue;
 
-        // 3 урока в неделю на параллель
+        const engTeachers = teachers.filter((t: any) =>
+          (t.subjects || []).some((s: string) => s.toLowerCase().includes("ағылшын"))
+        );
+        if (engTeachers.length < parClasses.length) continue;
+
         let placed = 0;
-        for (let d = 1; d <= DAYS && placed < 3; d++) {
-          for (let p = 2; p <= PERIODS - 1 && placed < 3; p++) {
-            // Проверяем, что весь параллельный набор свободен
-            const allClassesFree = parallelClasses.every((c: any) => isFree(classBusy, c.id, d, p));
-            const teachersFree = englishTeachers.filter((t: any) => isFree(teacherBusy, t.id, d, p));
-            const labsFree = langLabs.filter((r: any) => isFree(roomBusy, r.id, d, p));
-            const needed = Math.min(parallelClasses.length, 4);
-            if (allClassesFree && teachersFree.length >= needed && labsFree.length >= needed) {
-              const levels = ["Beginner", "Pre-Int", "Intermediate", "Upper"];
-              for (let i = 0; i < needed; i++) {
-                const c = parallelClasses[i];
-                const t = teachersFree[i];
-                const r = labsFree[i];
+        const targetLessons = 3;
+        for (let d = 1; d <= DAYS && placed < targetLessons; d++) {
+          for (let p = 2; p <= PERIODS - 1 && placed < targetLessons; p++) {
+            const allClassesFree = parClasses.every((c: any) => !busy(classBusy, c.id, d, p));
+            const teachersFree = engTeachers.filter((t: any) => !busy(teacherBusy, t.id, d, p)).slice(0, parClasses.length);
+            const labsFree = labRooms.filter((r: any) => !busy(roomBusy, r.id, d, p)).slice(0, parClasses.length);
+            
+            if (allClassesFree && teachersFree.length >= parClasses.length && labsFree.length >= parClasses.length) {
+              const levels = ["Beginner", "Pre-Int", "Intermediate", "Advanced"];
+              for (let i = 0; i < parClasses.length; i++) {
                 slots.push({
-                  day_of_week: d,
-                  period: p,
-                  class_id: c.id,
-                  subject_id: englishSubject.id,
-                  teacher_id: t.id,
-                  room_id: r.id,
-                  lenta_group: `english_${levels[i].toLowerCase()}`,
+                  day_of_week: d, period: p,
+                  class_id: parClasses[i].id,
+                  subject_id: englishSubj.id,
+                  teacher_id: teachersFree[i].id,
+                  room_id: labsFree[i].id,
+                  lenta_group: `eng_${grade}_${levels[i].toLowerCase()}`,
                 });
-                occupy(classBusy, c.id, d, p);
-                occupy(teacherBusy, t.id, d, p);
-                occupy(roomBusy, r.id, d, p);
+                occupy(classBusy, parClasses[i].id, d, p);
+                occupy(teacherBusy, teachersFree[i].id, d, p);
+                occupy(roomBusy, labsFree[i].id, d, p);
               }
               placed++;
             }
@@ -104,95 +123,85 @@ serve(async (req) => {
       }
     }
 
-    // Теперь — основные предметы для каждого класса
-    for (const c of classes) {
-      const classCurr = curriculum.filter((cu: any) => cu.class_id === c.id);
-      // вычитаем уже поставленные английские
-      const placedEnglish = slots.filter((s) => s.class_id === c.id && s.subject_id === englishSubject?.id).length;
+    // ===== ФАЗА 2: Основные предметы по curriculum =====
+    // Сортируем классы и собираем "корзину" уроков для каждого
+    for (const cls of classes) {
+      const classCurr = curriculum.filter((c: any) => c.class_id === cls.id);
+      const placedEngCount = slots.filter(s => s.class_id === cls.id && s.subject_id === englishSubj?.id).length;
 
-      const subjectsToPlace: { subject_id: string; remaining: number }[] = [];
+      const buckets: { subject_id: string; remaining: number; subj: any }[] = [];
       for (const cu of classCurr) {
         const subj = subjectById.get(cu.subject_id) as any;
         if (!subj) continue;
-        let remaining = cu.hours_per_week;
-        if (subj.short_name === "Англ") remaining = Math.max(0, remaining - placedEnglish);
-        if (remaining > 0) subjectsToPlace.push({ subject_id: cu.subject_id, remaining });
+        let rem = cu.hours_per_week;
+        if (subj.id === englishSubj?.id) rem = Math.max(0, rem - placedEngCount);
+        if (rem > 0) buckets.push({ subject_id: cu.subject_id, remaining: rem, subj });
       }
 
-      const room = standardRooms.get(c.id);
-
+      // Жадно расставляем
       for (let d = 1; d <= DAYS; d++) {
         for (let p = 1; p <= PERIODS; p++) {
-          if (!isFree(classBusy, c.id, d, p)) continue;
-          // выбираем предмет: тот, у которого больше осталось
-          subjectsToPlace.sort((a, b) => b.remaining - a.remaining);
-          const candidate = subjectsToPlace.find((sp) => sp.remaining > 0);
-          if (!candidate) continue;
-          const subj = subjectById.get(candidate.subject_id) as any;
+          if (busy(classBusy, cls.id, d, p)) continue;
+          buckets.sort((a, b) => b.remaining - a.remaining);
+          const pick = buckets.find(b => b.remaining > 0);
+          if (!pick) break;
 
-          // Ищем учителя
-          const candidateTeachers = teachers.filter(
-            (t: any) =>
-              t.subjects?.some((sub: string) => sub.toLowerCase().includes(subj.short_name.toLowerCase()) || sub === subj.name) &&
-              isFree(teacherBusy, t.id, d, p)
+          const candidates = teachersForSubjectClass(pick.subject_id, cls).filter((t: any) => !busy(teacherBusy, t.id, d, p));
+          // приоритет — наименее загруженный сегодня
+          candidates.sort((a: any, b: any) => 
+            (teacherDayLoad.get(a.id)?.get(d) || 0) - (teacherDayLoad.get(b.id)?.get(d) || 0)
           );
-          if (candidateTeachers.length === 0) {
-            // fallback: любой учитель
-            const anyT = teachers.find((t: any) => isFree(teacherBusy, t.id, d, p));
-            if (!anyT) continue;
-            slots.push({
-              day_of_week: d, period: p, class_id: c.id, subject_id: subj.id,
-              teacher_id: anyT.id, room_id: room?.id,
-            });
-            occupy(classBusy, c.id, d, p);
-            occupy(teacherBusy, anyT.id, d, p);
-            if (room) occupy(roomBusy, room.id, d, p);
-          } else {
-            // выбираем наименее загруженного
-            candidateTeachers.sort((a: any, b: any) => {
-              const la = teacherDayLoad.get(a.id)?.get(d) || 0;
-              const lb = teacherDayLoad.get(b.id)?.get(d) || 0;
-              return la - lb;
-            });
-            const t = candidateTeachers[0];
-            slots.push({
-              day_of_week: d, period: p, class_id: c.id, subject_id: subj.id,
-              teacher_id: t.id, room_id: room?.id,
-            });
-            occupy(classBusy, c.id, d, p);
-            occupy(teacherBusy, t.id, d, p);
-            if (room) occupy(roomBusy, room.id, d, p);
-            if (!teacherDayLoad.has(t.id)) teacherDayLoad.set(t.id, new Map());
-            const ld = teacherDayLoad.get(t.id)!;
-            ld.set(d, (ld.get(d) || 0) + 1);
+          let teacher = candidates[0];
+          if (!teacher) {
+            // fallback — любой свободный учитель
+            teacher = teachers.find((t: any) => !busy(teacherBusy, t.id, d, p));
           }
-          candidate.remaining--;
+          if (!teacher) continue;
+
+          const room = pickRoom(pick.subj, cls, d, p);
+          if (!room) continue;
+
+          slots.push({
+            day_of_week: d, period: p,
+            class_id: cls.id,
+            subject_id: pick.subject_id,
+            teacher_id: teacher.id,
+            room_id: room.id,
+          });
+          occupy(classBusy, cls.id, d, p);
+          occupy(teacherBusy, teacher.id, d, p);
+          occupy(roomBusy, room.id, d, p);
+          if (!teacherDayLoad.has(teacher.id)) teacherDayLoad.set(teacher.id, new Map());
+          const ld = teacherDayLoad.get(teacher.id)!;
+          ld.set(d, (ld.get(d) || 0) + 1);
+          pick.remaining--;
         }
       }
     }
 
-    // Записываем
+    // Запись
     const weekStart = new Date();
     weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
     const weekStr = weekStart.toISOString().slice(0, 10);
-    const { error } = await supabase.from("schedule_slots").insert(
-      slots.map((s) => ({ ...s, week_starting: weekStr }))
-    );
-    if (error) throw error;
+    const batches: any[] = [];
+    for (let i = 0; i < slots.length; i += 200) batches.push(slots.slice(i, i + 200));
+    for (const b of batches) {
+      const { error } = await sb.from("schedule_slots").insert(b.map(s => ({ ...s, week_starting: weekStr })));
+      if (error) throw error;
+    }
 
+    const elapsed = Date.now() - t0;
     return new Response(JSON.stringify({
       ok: true,
       slots_created: slots.length,
       classes: classes.length,
-      lentas: slots.filter((s) => s.lenta_group).length,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+      teachers: teachers.length,
+      rooms: rooms.length,
+      lentas: slots.filter(s => s.lenta_group).length,
+      elapsed_ms: elapsed,
+    }), { headers: { ...cors, "Content-Type": "application/json" } });
   } catch (e: any) {
-    console.error("schedule-generator error:", e);
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("schedule-generator:", e);
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
   }
 });
