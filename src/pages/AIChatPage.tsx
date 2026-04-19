@@ -17,6 +17,7 @@ const AIChatPage = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
   const recRef = useRef<any>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -29,34 +30,20 @@ const AIChatPage = () => {
     setInput("");
     setLoading(true);
     try {
-      // Если голосовая команда похожа на постановку задач — парсим в tasks
-      const isTaskLike = /закажи|подготовь|сделай|купи|организуй|свяжись|назначь/i.test(text);
-      if (isTaskLike) {
-        const { data: staff } = await supabase.from("staff").select("id, full_name, role");
-        const { data, error } = await supabase.functions.invoke("ai-orchestrator", {
-          body: { action: "voice_to_tasks", transcript: text, staff: staff || [] },
-        });
-        if (error) throw error;
-        const tasks = data.tasks || [];
-        for (const t of tasks) {
-          const assignee = (staff || []).find((s: any) => s.full_name.toLowerCase().includes((t.assignee_full_name || "").toLowerCase().split(" ")[0]));
-          await supabase.from("tasks").insert({
-            title: t.title,
-            description: t.description || "",
-            assignee_id: assignee?.id,
-            priority: t.priority,
-            source: "voice",
-            source_message: text,
-          });
-        }
-        const reply = `✅ Создано задач: **${tasks.length}**\n\n${tasks.map((t: any, i: number) => `${i + 1}. **${t.title}** — ${t.assignee_full_name} (${t.priority})${t.due_hint ? ` · _${t.due_hint}_` : ""}`).join("\n")}\n\nЗадачи отправлены исполнителям.`;
-        setMessages([...newMsgs, { role: "assistant", content: reply }]);
-      } else {
-        const { data, error } = await supabase.functions.invoke("ai-orchestrator", {
-          body: { action: "chat", messages: newMsgs },
-        });
-        if (error) throw error;
-        setMessages([...newMsgs, { role: "assistant", content: data.content }]);
+      const { data, error } = await supabase.functions.invoke("ai-orchestrator", {
+        body: { messages: newMsgs, voice_mode: voiceMode },
+      });
+      if (error) throw error;
+      const reply = data.content || "(пусто)";
+      setMessages([...newMsgs, { role: "assistant", content: reply }]);
+
+      // Голосовой ответ через SpeechSynthesis
+      if (voiceMode && "speechSynthesis" in window) {
+        const utter = new SpeechSynthesisUtterance(reply.replace(/[*_#`>\-]/g, ""));
+        utter.lang = "ru-RU";
+        utter.rate = 1.05;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utter);
       }
     } catch (e: any) {
       toast.error(e.message || "Ошибка AI");
@@ -124,7 +111,10 @@ const AIChatPage = () => {
             <div ref={endRef} />
           </div>
 
-          <div className="border-t border-border p-4 flex gap-2">
+          <div className="border-t border-border p-4 flex gap-2 items-center">
+            <Button onClick={() => setVoiceMode(v => !v)} variant={voiceMode ? "default" : "outline"} size="sm" className="gap-1">
+              🔊 {voiceMode ? "Голос ВКЛ" : "Голос"}
+            </Button>
             <Button onClick={toggleRec} variant={recording ? "destructive" : "outline"} size="icon" className={recording ? "animate-glow" : ""}>
               {recording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </Button>
