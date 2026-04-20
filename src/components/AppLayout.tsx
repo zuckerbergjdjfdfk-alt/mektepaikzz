@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
 import { NotificationsBell } from "./NotificationsBell";
 import { ProfileMenu } from "./ProfileMenu";
+import { VoiceAssistant } from "./VoiceAssistant";
 
 export const AppLayout = ({ children }: { children: ReactNode }) => {
   return (
@@ -36,6 +37,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           </header>
           <main className="flex-1 overflow-x-hidden">{children}</main>
         </div>
+        <VoiceAssistant />
       </div>
     </SidebarProvider>
   );
