@@ -7,12 +7,14 @@ import { Bot, Mic, MicOff, Send, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
 const AIChatPage = () => {
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", content: "Здравствуйте, Айгуль Серикбаевна! 👋\n\nЯ ваш AI-завуч. Могу:\n- Распарсить голосовую команду в задачи (нажмите 🎤)\n- Объяснить любой приказ простым языком\n- Подсказать замену учителю\n- Сгенерировать утренний свод\n\nПопробуйте сказать: *«Айгерим, подготовь актовый зал. Назкен, закажи воду»*" },
+    { role: "assistant", content: "Здравствуйте, Айгуль Серикбаевна! 👋\n\nЯ ваш AI-завуч Mektep AI. Могу:\n- Сгенерировать расписание и сразу открыть его\n- Запустить утренний свод и открыть отчёт\n- Подобрать замену учителю\n- Подготовить официальный приказ\n\nПопробуйте сказать: *«Сгенерируй расписание на вторник с лентой»*" },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,19 +27,39 @@ const AIChatPage = () => {
 
   const send = async (text: string) => {
     if (!text.trim()) return;
+    const normalized = text.toLowerCase();
     const newMsgs: Msg[] = [...messages, { role: "user", content: text }];
     setMessages(newMsgs);
     setInput("");
     setLoading(true);
     try {
+      if (normalized.includes("расписан") && (normalized.includes("сгенер") || normalized.includes("сделай") || normalized.includes("построй"))) {
+        const { data, error } = await supabase.functions.invoke("schedule-generator", { body: {} });
+        if (error) throw error;
+        const reply = `Готово: сгенерировал расписание. Создано ${data?.slots_created || 0} уроков, лент: ${data?.lentas || 0}. Открываю раздел расписания.`;
+        setMessages([...newMsgs, { role: "assistant", content: reply }]);
+        toast.success("Расписание сгенерировано");
+        setTimeout(() => navigate("/schedule"), 500);
+        return;
+      }
+
+      if ((normalized.includes("утрен") && normalized.includes("свод")) || normalized.includes("отчёт")) {
+        const { data, error } = await supabase.functions.invoke("morning-digest", { body: {} });
+        if (error) throw error;
+        const reply = data?.report || "Утренний свод готов. Открываю отчёты.";
+        setMessages([...newMsgs, { role: "assistant", content: reply }]);
+        toast.success("Отчёт готов");
+        setTimeout(() => navigate("/reports"), 500);
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke("ai-orchestrator", {
         body: { messages: newMsgs, voice_mode: voiceMode },
       });
       if (error) throw error;
-      const reply = data.content || "(пусто)";
+      const reply = data?.content || data?.error || "Не удалось получить ответ";
       setMessages([...newMsgs, { role: "assistant", content: reply }]);
 
-      // Голосовой ответ через SpeechSynthesis
       if (voiceMode && "speechSynthesis" in window) {
         const utter = new SpeechSynthesisUtterance(reply.replace(/[*_#`>\-]/g, ""));
         utter.lang = "ru-RU";
