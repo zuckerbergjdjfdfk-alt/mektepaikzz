@@ -1,4 +1,4 @@
-// AI-завуч Aqbobek — голос → задачи, чат, генерация приказов, расписание, замены
+// AI-завуч Aqbobek Lyceum (г. Актобе) — голос → задачи, чат, генерация приказов, расписание, замены
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cors = {
@@ -6,7 +6,7 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `Ты — AI-завуч школы Mektep AI (Aqbobek Lyceum, Алматы). Босс — директор Айгуль Серикбаевна.
+const SYSTEM_PROMPT = `Ты — AI-завуч школы Mektep AI (Aqbobek Lyceum, г. Актобе, Казахстан). Босс — директор Айгуль Серикбаевна.
 
 ЛИЧНОСТЬ:
 - Профессиональный, уважительный, лаконичный.

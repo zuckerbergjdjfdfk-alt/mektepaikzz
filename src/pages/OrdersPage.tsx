@@ -1,14 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Sparkles, Loader2, Download, Printer, Wand2, Eye } from "lucide-react";
+import { FileText, Sparkles, Loader2, Download, Printer, Wand2, Eye, Mic, MicOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { registerVoiceListener } from "@/components/VoiceAssistant";
 
 const OrdersPage = () => {
   const [templates, setTemplates] = useState<any[]>([]);
@@ -18,6 +19,8 @@ const OrdersPage = () => {
   const [generated, setGenerated] = useState("");
   const [editInstr, setEditInstr] = useState("");
   const [loading, setLoading] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const recRef = useRef<any>(null);
 
   const load = async () => {
     const [t, o] = await Promise.all([
@@ -29,11 +32,63 @@ const OrdersPage = () => {
   };
   useEffect(() => { load(); }, []);
 
+  // Голосовой listener: «приказ … про …» => подставляем контекст
+  useEffect(() => {
+    return registerVoiceListener(async (text) => {
+      if (!/приказ|распоряжен|документ/i.test(text)) return false;
+      setContext((prev) => prev ? `${prev}\n${text}` : text);
+      toast.success("Контекст добавлен голосом");
+      return true;
+    });
+  }, []);
+
+  const dictate = () => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) { toast.error("Только Chrome / Edge"); return; }
+    if (recording) { recRef.current?.stop(); return; }
+    const rec = new SR();
+    rec.lang = "ru-RU";
+    rec.continuous = true;
+    rec.interimResults = true;
+    let finalText = context;
+    rec.onresult = (e: any) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) finalText += " " + e.results[i][0].transcript;
+        else interim += e.results[i][0].transcript;
+      }
+      setContext((finalText + " " + interim).trim());
+    };
+    rec.onerror = () => setRecording(false);
+    rec.onend = () => { setRecording(false); setContext(finalText.trim()); };
+    rec.start();
+    recRef.current = rec;
+    setRecording(true);
+    toast.info("Диктуйте контекст приказа...");
+  };
+
   const generate = async () => {
     if (!selected || !context.trim()) { toast.error("Введите детали приказа"); return; }
     setLoading(true);
     try {
-      const prompt = `Сгенерируй приказ по шаблону "${selected.title}" (код ${selected.code}). Контекст от директора: "${context}". Заполни все плейсхолдеры в шаблоне реальными данными. Шаблон:\n\n${selected.template_md}\n\nВерни ТОЛЬКО готовый markdown без объяснений.`;
+      const today = new Date().toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+      const orderNo = Math.floor(100 + Math.random() * 900);
+      const prompt = `Ты составляешь ОФИЦИАЛЬНЫЙ ПРИКАЗ по школе Aqbobek Lyceum (г. Актобе, Республика Казахстан) от имени директора Айгуль Серикбаевны.
+
+Шаблон: "${selected.title}" (код ${selected.code}).
+Дата: ${today}. Номер: №${orderNo}-АЛ.
+Контекст: ${context}
+
+Шаблон-основа:
+${selected.template_md}
+
+Требования:
+- Используй официальный канцелярский стиль РК.
+- Заполни ВСЕ плейсхолдеры реальными данными из контекста.
+- Структура: шапка (Министерство, школа, город), номер, дата, основание, ПРИКАЗЫВАЮ (нумерованные пункты), ответственные, контроль, подпись.
+- Используй markdown: # для заголовка, ## для разделов, **жирный** для ключевых слов.
+- Без вступительных фраз и комментариев — только готовый документ.`;
+
       const { data, error } = await supabase.functions.invoke("ai-orchestrator", {
         body: { messages: [{ role: "user", content: prompt }] },
       });
@@ -47,7 +102,7 @@ const OrdersPage = () => {
     if (!editInstr.trim()) return;
     setLoading(true);
     try {
-      const prompt = `Вот текущий приказ:\n\n${generated}\n\nИзмени его согласно инструкции: "${editInstr}". Верни ТОЛЬКО обновлённый markdown.`;
+      const prompt = `Вот текущий приказ:\n\n${generated}\n\nИзмени его согласно инструкции директора: "${editInstr}". Сохрани официальный канцелярский стиль РК. Верни ТОЛЬКО обновлённый markdown без комментариев.`;
       const { data, error } = await supabase.functions.invoke("ai-orchestrator", {
         body: { messages: [{ role: "user", content: prompt }] },
       });
@@ -66,16 +121,29 @@ const OrdersPage = () => {
       content_md: generated,
       status: "draft",
     });
-    toast.success("Сохранено");
+    toast.success("Сохранено в историю");
     await load();
   };
 
   const printPreview = () => {
     const w = window.open("", "_blank");
     if (!w) return;
-    w.document.write(`<html><head><title>${selected?.title || "Приказ"}</title>
-      <style>body{font-family:Georgia,serif;padding:40px;max-width:800px;margin:auto;line-height:1.6;color:#222}h1{font-size:18pt;text-align:center}h2{font-size:14pt}p{margin:12px 0}</style>
-      </head><body>${generated.replace(/\n/g, "<br/>")}</body></html>`);
+    const html = generated
+      .replace(/^# (.*)$/gm, "<h1>$1</h1>")
+      .replace(/^## (.*)$/gm, "<h2>$1</h2>")
+      .replace(/^### (.*)$/gm, "<h3>$1</h3>")
+      .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
+      .replace(/\n\n/g, "</p><p>")
+      .replace(/\n/g, "<br/>");
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${selected?.title || "Приказ"}</title>
+      <style>
+        @page { size: A4; margin: 2.5cm 2cm; }
+        body { font-family: 'Times New Roman', Georgia, serif; font-size: 12pt; line-height: 1.6; color: #000; }
+        h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; }
+        h2 { font-size: 13pt; margin-top: 14pt; }
+        h3 { font-size: 12pt; }
+        p { margin: 8pt 0; text-align: justify; }
+      </style></head><body><p>${html}</p></body></html>`);
     w.document.close();
     setTimeout(() => w.print(), 300);
   };
@@ -87,11 +155,10 @@ const OrdersPage = () => {
           <h1 className="font-display text-3xl font-extrabold flex items-center gap-3">
             <FileText className="h-8 w-8 text-primary" /> Приказы
           </h1>
-          <p className="text-muted-foreground mt-1">{templates.length} официальных шаблонов · AI-генерация · предпросмотр справа</p>
+          <p className="text-muted-foreground mt-1">{templates.length} официальных шаблонов · AI-генерация · диктовка голосом · печать A4</p>
         </motion.div>
 
         <div className="grid lg:grid-cols-12 gap-6">
-          {/* Templates */}
           <Card className="p-4 bg-gradient-card lg:col-span-3">
             <h2 className="font-display font-bold mb-3">Шаблоны</h2>
             <div className="space-y-2 max-h-[700px] overflow-y-auto">
@@ -109,7 +176,6 @@ const OrdersPage = () => {
             </div>
           </Card>
 
-          {/* Editor */}
           <Card className="p-4 bg-gradient-card lg:col-span-4 space-y-3">
             {!selected ? (
               <div className="h-full min-h-[400px] flex items-center justify-center text-center text-muted-foreground">
@@ -125,22 +191,28 @@ const OrdersPage = () => {
                   <p className="text-xs text-muted-foreground">{selected.description}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Контекст для AI:</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-sm font-medium">Контекст для AI:</label>
+                    <Button size="sm" variant={recording ? "destructive" : "outline"} onClick={dictate} className="gap-1 h-7">
+                      {recording ? <MicOff className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
+                      {recording ? "Стоп" : "Диктовать"}
+                    </Button>
+                  </div>
                   <Textarea value={context} onChange={(e) => setContext(e.target.value)} rows={6}
-                    placeholder="Например: ответственный — завхоз Турсунов С.Б., срок до 1 декабря 2025, контроль на завуче Сейтеновой М.Б." />
+                    placeholder="Например: ответственный — завхоз Турсунов С.Б., срок до 1 декабря 2025, контроль на завуче Сейтеновой М.Б. Можно надиктовать голосом." />
                 </div>
                 <Button onClick={generate} disabled={loading || !context.trim()} className="w-full bg-gradient-primary text-primary-foreground gap-2">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  Сгенерировать
+                  Сгенерировать приказ
                 </Button>
 
                 {generated && (
                   <>
                     <div className="pt-3 border-t border-border">
-                      <label className="text-sm font-medium mb-1 block">Доработать:</label>
+                      <label className="text-sm font-medium mb-1 block">Доработать AI-командой:</label>
                       <div className="flex gap-2">
                         <Textarea value={editInstr} onChange={(e) => setEditInstr(e.target.value)} rows={2}
-                          placeholder="Замени дату на 15 декабря..." className="flex-1" />
+                          placeholder="Замени дату на 15 декабря, добавь третий пункт..." className="flex-1" />
                         <Button onClick={editOrder} disabled={loading || !editInstr.trim()} variant="outline" size="icon" className="self-stretch">
                           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
                         </Button>
@@ -148,7 +220,7 @@ const OrdersPage = () => {
                     </div>
                     <div className="flex gap-2 flex-wrap">
                       <Button size="sm" onClick={save} className="gap-1"><FileText className="h-3 w-3" /> Сохранить</Button>
-                      <Button size="sm" variant="outline" onClick={printPreview} className="gap-1"><Printer className="h-3 w-3" /> Печать</Button>
+                      <Button size="sm" variant="outline" onClick={printPreview} className="gap-1"><Printer className="h-3 w-3" /> Печать A4</Button>
                       <Button size="sm" variant="outline" onClick={() => {
                         const blob = new Blob([generated], { type: "text/markdown" });
                         const url = URL.createObjectURL(blob);
@@ -162,7 +234,6 @@ const OrdersPage = () => {
             )}
           </Card>
 
-          {/* Preview */}
           <Card className="lg:col-span-5 bg-card overflow-hidden flex flex-col max-h-[800px]">
             <div className="p-3 border-b border-border bg-gradient-card flex items-center gap-2">
               <Eye className="h-4 w-4 text-primary" />
@@ -171,7 +242,7 @@ const OrdersPage = () => {
             </div>
             <div className="overflow-y-auto p-8 flex-1 bg-card text-foreground">
               {generated ? (
-                <div className="prose prose-sm max-w-none dark:prose-invert" style={{ fontFamily: "Georgia, serif" }}>
+                <div className="prose prose-sm max-w-none dark:prose-invert" style={{ fontFamily: "'Times New Roman', Georgia, serif" }}>
                   <ReactMarkdown>{generated}</ReactMarkdown>
                 </div>
               ) : (
@@ -186,7 +257,6 @@ const OrdersPage = () => {
           </Card>
         </div>
 
-        {/* History */}
         {orders.length > 0 && (
           <Card className="p-4 bg-gradient-card">
             <h2 className="font-display font-bold mb-3">История приказов ({orders.length})</h2>
