@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sparkles, Loader2, Calendar, AlertTriangle, Flame, Download, RefreshCw, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { registerVoiceListener } from "@/components/VoiceAssistant";
 
 const DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт"];
 const PERIODS = [1, 2, 3, 4, 5, 6];
@@ -58,6 +59,30 @@ const SchedulePage = () => {
   };
 
   useEffect(() => { load(); }, []);
+
+  // Голосовые команды для расписания
+  useEffect(() => {
+    return registerVoiceListener(async (text) => {
+      const t = text.toLowerCase();
+      if (/(сгенер|построй|создай|сделай).*расписан/.test(t)) {
+        await generateSchedule();
+        return true;
+      }
+      const teacherMatch = t.match(/(?:учител[ья]?|преподавател[ья]?)\s+([а-яё]+)/i);
+      if (/(заболел|не\s+придет|не\s+придёт|болеет)/.test(t) && teacherMatch) {
+        const name = teacherMatch[1];
+        const teacher = staff.find((s) => s.full_name?.toLowerCase().includes(name));
+        if (teacher) {
+          await triggerSubstitution(teacher.id);
+          return true;
+        }
+      }
+      if (/(показать|покажи).*учител[ья]?/.test(t)) { setView("teacher"); return true; }
+      if (/(показать|покажи).*класс/.test(t)) { setView("class"); return true; }
+      if (/(нагрузк|heatmap|тепло)/.test(t)) { setView("heatmap"); return true; }
+      return false;
+    });
+  }, [staff]);
 
   const subjectMap = useMemo(() => new Map(subjects.map((s) => [s.id, s])), [subjects]);
   const staffMap = useMemo(() => new Map(staff.map((s) => [s.id, s])), [staff]);
