@@ -15,9 +15,12 @@ import IncidentsPage from "./pages/IncidentsPage.tsx";
 import ChatsPage from "./pages/ChatsPage.tsx";
 import NfcPage from "./pages/NfcPage.tsx";
 import ReportsPage from "./pages/ReportsPage.tsx";
+import StaffPage from "./pages/StaffPage.tsx";
+import ClassesPage from "./pages/ClassesPage.tsx";
+import AttendancePage from "./pages/AttendancePage.tsx";
+import TasksPage from "./pages/TasksPage.tsx";
+import SettingsPage from "./pages/SettingsPage.tsx";
 import { SplashScreen } from "./components/SplashScreen.tsx";
-import { PlaceholderPage } from "./components/PlaceholderPage.tsx";
-import { Users, GraduationCap, ClipboardList, BookOpen, Settings } from "lucide-react";
 
 const queryClient = new QueryClient();
 
@@ -45,11 +48,11 @@ const App = () => {
             <Route path="/chats" element={<ChatsPage />} />
             <Route path="/nfc" element={<NfcPage />} />
             <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/staff" element={<PlaceholderPage title="Сотрудники" description="43 педагога Aqbobek Lyceum" icon={<Users className="h-8 w-8 text-primary" />} />} />
-            <Route path="/classes" element={<PlaceholderPage title="Классы" description="13 классов 7-11" icon={<GraduationCap className="h-8 w-8 text-primary" />} />} />
-            <Route path="/attendance" element={<PlaceholderPage title="Посещаемость" description="См. раздел AI-отчёты" icon={<BookOpen className="h-8 w-8 text-primary" />} />} />
-            <Route path="/tasks" element={<PlaceholderPage title="Задачи" description="Голосовая постановка из AI-чата" icon={<ClipboardList className="h-8 w-8 text-primary" />} />} />
-            <Route path="/settings" element={<PlaceholderPage title="Настройки" description="Telegram · Green API · профиль" icon={<Settings className="h-8 w-8 text-primary" />} />} />
+            <Route path="/staff" element={<StaffPage />} />
+            <Route path="/classes" element={<ClassesPage />} />
+            <Route path="/attendance" element={<AttendancePage />} />
+            <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
