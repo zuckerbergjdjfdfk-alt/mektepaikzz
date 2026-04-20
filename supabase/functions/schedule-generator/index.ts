@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
     const batches: any[] = [];
     for (let i = 0; i < slots.length; i += 200) batches.push(slots.slice(i, i + 200));
     for (const b of batches) {
-      const { error } = await sb.from("schedule_slots").insert(b.map(s => ({ ...s, week_starting: weekStr })));
+      const { error } = await sb.from("schedule_slots").insert(b.map((s: any) => ({ ...s, week_starting: weekStr })));
       if (error) throw error;
     }
 
