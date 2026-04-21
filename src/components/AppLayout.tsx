@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useRef } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { Search } from "lucide-react";
@@ -8,8 +8,38 @@ import { Link } from "react-router-dom";
 import { NotificationsBell } from "./NotificationsBell";
 import { ProfileMenu } from "./ProfileMenu";
 import { VoiceAssistant } from "./VoiceAssistant";
+import { supabase } from "@/integrations/supabase/client";
 
 export const AppLayout = ({ children }: { children: ReactNode }) => {
+  const syncingRef = useRef(false);
+
+  useEffect(() => {
+    const syncChats = async () => {
+      if (syncingRef.current || document.hidden) return;
+      syncingRef.current = true;
+      try {
+        await Promise.allSettled([
+          supabase.functions.invoke("telegram-poll", { body: {} }),
+          supabase.functions.invoke("whatsapp-poll", { body: {} }),
+        ]);
+      } finally {
+        syncingRef.current = false;
+      }
+    };
+
+    syncChats();
+    const intervalId = window.setInterval(syncChats, 30000);
+    const handleVisibility = () => {
+      if (!document.hidden) syncChats();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
+
   return (
     <SidebarProvider defaultOpen>
       <div className="flex min-h-screen w-full bg-background">

@@ -20,6 +20,7 @@ import ClassesPage from "./pages/ClassesPage.tsx";
 import AttendancePage from "./pages/AttendancePage.tsx";
 import TasksPage from "./pages/TasksPage.tsx";
 import SettingsPage from "./pages/SettingsPage.tsx";
+import ProfilePage from "./pages/ProfilePage.tsx";
 import { SplashScreen } from "./components/SplashScreen.tsx";
 
 const queryClient = new QueryClient();
@@ -53,6 +54,7 @@ const App = () => {
             <Route path="/attendance" element={<AttendancePage />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

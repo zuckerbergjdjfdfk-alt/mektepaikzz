@@ -1,7 +1,8 @@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Crown, LogOut, Settings, Shield } from "lucide-react";
+import { Crown, LogOut, MapPin, Settings, Shield, UserCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 export const ProfileMenu = () => {
   return (
@@ -19,7 +20,7 @@ export const ProfileMenu = () => {
           </div>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
+      <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuLabel className="p-3">
           <div className="flex items-center gap-3">
             <Avatar className="h-12 w-12 ring-2 ring-secondary">
@@ -27,7 +28,7 @@ export const ProfileMenu = () => {
             </Avatar>
             <div>
               <div className="font-display font-bold">Айгуль Серикбаевна</div>
-              <div className="text-xs text-muted-foreground">Директор Aqbobek Lyceum</div>
+              <div className="text-xs text-muted-foreground">Директор Mektep AI</div>
               <div className="text-[10px] text-secondary mt-0.5 flex items-center gap-1">
                 <Shield className="h-2.5 w-2.5" /> Полный доступ
               </div>
@@ -35,11 +36,21 @@ export const ProfileMenu = () => {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <Settings className="h-4 w-4 mr-2" /> Настройки профиля
+        <DropdownMenuItem asChild>
+          <Link to="/profile" className="cursor-pointer">
+            <UserCircle2 className="h-4 w-4 mr-2" /> Профиль директора
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/settings" className="cursor-pointer">
+            <Settings className="h-4 w-4 mr-2" /> Настройки системы
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem>
-          <Crown className="h-4 w-4 mr-2" /> Стаж: 18 лет · Тариф: Премиум
+          <MapPin className="h-4 w-4 mr-2" /> Актобе, Казахстан
+        </DropdownMenuItem>
+        <DropdownMenuItem>
+          <Crown className="h-4 w-4 mr-2" /> Стаж: 18 лет · Роль: директор
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="text-destructive">

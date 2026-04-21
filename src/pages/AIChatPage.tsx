@@ -3,27 +3,41 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Bot, Mic, MicOff, Send, Loader2, Sparkles } from "lucide-react";
+import { Bot, Mic, MicOff, Send, Loader2, Sparkles, Volume2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { getSpeechRecognition, primeSpeech, requestMicrophoneAccess, speakText, supportsSpeechRecognition } from "@/lib/voice";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
 const AIChatPage = () => {
   const navigate = useNavigate();
   const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", content: "Здравствуйте, Айгуль Серикбаевна! 👋\n\nЯ ваш AI-завуч Mektep AI. Могу:\n- Сгенерировать расписание и сразу открыть его\n- Запустить утренний свод и открыть отчёт\n- Подобрать замену учителю\n- Подготовить официальный приказ\n\nПопробуйте сказать: *«Сгенерируй расписание на вторник с лентой»*" },
+    { role: "assistant", content: "Здравствуйте, Айгуль Серикбаевна! 👋
+
+Я ваш AI-завуч Mektep AI по школе в Актобе. Могу сгенерировать расписание, подготовить приказ, собрать утренний свод и озвучить ответ вслух." },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [voiceMode, setVoiceMode] = useState(false);
-  const recRef = useRef<any>(null);
+  const [voiceMode, setVoiceMode] = useState(true);
+  const recRef = useRef<SpeechRecognition | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), [messages]);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    primeSpeech();
+  }, []);
+
+  const maybeSpeak = async (text: string) => {
+    if (!voiceMode) return;
+    await speakText(text);
+  };
 
   const send = async (text: string) => {
     if (!text.trim()) return;
@@ -34,20 +48,22 @@ const AIChatPage = () => {
     setLoading(true);
     try {
       if (normalized.includes("расписан") && (normalized.includes("сгенер") || normalized.includes("сделай") || normalized.includes("построй"))) {
-        const { data, error } = await supabase.functions.invoke("schedule-generator", { body: {} });
+        const { data, error } = await supabase.functions.invoke("schedule-generator", { body: { mode: "ai" } });
         if (error) throw error;
-        const reply = `Готово: сгенерировал расписание. Создано ${data?.slots_created || 0} уроков, лент: ${data?.lentas || 0}. Открываю раздел расписания.`;
+        const reply = `Готово: сгенерировал расписание. Создано ${data?.slots_created || 0} уроков, лент ${data?.lentas || 0}. Открываю раздел расписания.`;
         setMessages([...newMsgs, { role: "assistant", content: reply }]);
+        await maybeSpeak(reply);
         toast.success("Расписание сгенерировано");
         setTimeout(() => navigate("/schedule"), 500);
         return;
       }
 
-      if ((normalized.includes("утрен") && normalized.includes("свод")) || normalized.includes("отчёт")) {
+      if ((normalized.includes("утрен") && normalized.includes("свод")) || normalized.includes("отчёт") || normalized.includes("отчет")) {
         const { data, error } = await supabase.functions.invoke("morning-digest", { body: {} });
         if (error) throw error;
         const reply = data?.report || "Утренний свод готов. Открываю отчёты.";
         setMessages([...newMsgs, { role: "assistant", content: reply }]);
+        await maybeSpeak(reply);
         toast.success("Отчёт готов");
         setTimeout(() => navigate("/reports"), 500);
         return;
@@ -59,25 +75,17 @@ const AIChatPage = () => {
       if (error) throw error;
       const reply = data?.content || data?.error || "Не удалось получить ответ";
       setMessages([...newMsgs, { role: "assistant", content: reply }]);
-
-      if (voiceMode && "speechSynthesis" in window) {
-        const utter = new SpeechSynthesisUtterance(reply.replace(/[*_#`>\-]/g, ""));
-        utter.lang = "ru-RU";
-        utter.rate = 1.05;
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(utter);
-      }
-    } catch (e: any) {
-      toast.error(e.message || "Ошибка AI");
+      await maybeSpeak(reply);
+    } catch (error: any) {
+      toast.error(error.message || "Ошибка AI");
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleRec = () => {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) {
-      toast.error("Ваш браузер не поддерживает голосовой ввод. Используйте Chrome.");
+  const toggleRec = async () => {
+    if (!supportsSpeechRecognition()) {
+      toast.error("Ваш браузер не поддерживает голосовой ввод. Используйте Chrome или Edge.");
       return;
     }
     if (recording) {
@@ -85,21 +93,37 @@ const AIChatPage = () => {
       setRecording(false);
       return;
     }
-    const rec = new SR();
-    rec.lang = "ru-RU";
-    rec.continuous = false;
-    rec.interimResults = false;
-    rec.onresult = (e: any) => {
-      const transcript = e.results[0][0].transcript;
-      setRecording(false);
-      send(transcript);
-    };
-    rec.onerror = () => { setRecording(false); toast.error("Ошибка распознавания"); };
-    rec.onend = () => setRecording(false);
-    rec.start();
-    recRef.current = rec;
-    setRecording(true);
-    toast.info("Говорите...");
+
+    try {
+      await requestMicrophoneAccess();
+      const SR = getSpeechRecognition();
+      if (!SR) throw new Error("SpeechRecognition не найден");
+      const rec = new SR();
+      rec.lang = "ru-RU";
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.onresult = (event: SpeechRecognitionEvent) => {
+        const transcript = event.results[0][0]?.transcript || "";
+        setRecording(false);
+        send(transcript);
+      };
+      rec.onerror = () => {
+        setRecording(false);
+        toast.error("Ошибка распознавания речи");
+      };
+      rec.onend = () => setRecording(false);
+      rec.start();
+      recRef.current = rec;
+      setRecording(true);
+      toast.info("Говорите...");
+    } catch (error: any) {
+      toast.error(error?.message || "Не удалось включить микрофон");
+    }
+  };
+
+  const repeatLastAnswer = async () => {
+    const lastAssistant = [...messages].reverse().find((message) => message.role === "assistant");
+    if (lastAssistant) await speakText(lastAssistant.content);
   };
 
   return (
@@ -110,21 +134,21 @@ const AIChatPage = () => {
             <div className="h-10 w-10 rounded-xl bg-gradient-gold flex items-center justify-center shadow-gold"><Bot className="h-5 w-5 text-primary-foreground" /></div>
             AI-завуч
           </h1>
-          <p className="text-muted-foreground mt-1">Голосовые команды · парсинг задач · бюрократический RAG</p>
+          <p className="text-muted-foreground mt-1">Голосовые команды, озвучка ответов, расписание, приказы и отчёты</p>
         </div>
 
         <Card className="flex-1 flex flex-col bg-gradient-card overflow-hidden">
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            {messages.map((m, i) => (
-              <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : ""}`}>
-                {m.role === "assistant" && (
+            {messages.map((message, index) => (
+              <div key={index} className={`flex gap-3 ${message.role === "user" ? "justify-end" : ""}`}>
+                {message.role === "assistant" && (
                   <div className="h-8 w-8 rounded-full bg-gradient-gold flex items-center justify-center shrink-0">
                     <Sparkles className="h-4 w-4 text-primary-foreground" />
                   </div>
                 )}
-                <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                   <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1">
-                    <ReactMarkdown>{m.content}</ReactMarkdown>
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
                   </div>
                 </div>
               </div>
@@ -133,17 +157,20 @@ const AIChatPage = () => {
             <div ref={endRef} />
           </div>
 
-          <div className="border-t border-border p-4 flex gap-2 items-center">
-            <Button onClick={() => setVoiceMode(v => !v)} variant={voiceMode ? "default" : "outline"} size="sm" className="gap-1">
-              🔊 {voiceMode ? "Голос ВКЛ" : "Голос"}
+          <div className="border-t border-border p-4 flex gap-2 items-center flex-wrap">
+            <Button onClick={() => setVoiceMode((value) => !value)} variant={voiceMode ? "default" : "outline"} size="sm" className="gap-1">
+              🔊 {voiceMode ? "Озвучка ВКЛ" : "Озвучка"}
             </Button>
-            <Button onClick={toggleRec} variant={recording ? "destructive" : "outline"} size="icon" className={recording ? "animate-glow" : ""}>
+            <Button onClick={repeatLastAnswer} variant="outline" size="icon" title="Повторить последний ответ">
+              <Volume2 className="h-4 w-4" />
+            </Button>
+            <Button onClick={toggleRec} variant={recording ? "destructive" : "outline"} size="icon" className={recording ? "animate-glow" : ""} disabled={!supportsSpeechRecognition()}>
               {recording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </Button>
             <Input
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && !loading && send(input)}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && !loading && send(input)}
               placeholder="Спросите AI или надиктуйте голосом..."
               className="flex-1"
             />

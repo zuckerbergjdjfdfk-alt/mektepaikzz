@@ -1,5 +1,3 @@
-// Green API webhook receiver — принимает входящие WhatsApp сообщения,
-// парсит их через AI (посещаемость / инциденты / задачи) и сохраняет в chat_messages.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cors = {
@@ -12,24 +10,19 @@ Deno.serve(async (req) => {
   try {
     const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const body = await req.json();
-    console.log("WA webhook:", JSON.stringify(body).slice(0, 500));
 
-    // Green API формат: typeWebhook=incomingMessageReceived
     if (body.typeWebhook !== "incomingMessageReceived") {
       return new Response(JSON.stringify({ ok: true, skipped: true }), {
         headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
-    const text = body.messageData?.textMessageData?.textMessage 
-      || body.messageData?.extendedTextMessageData?.text 
-      || "";
+    const text = body.messageData?.textMessageData?.textMessage || body.messageData?.extendedTextMessageData?.text || "";
     const senderName = body.senderData?.senderName || "Unknown";
     const chatName = body.senderData?.chatName || senderName;
     const chatId = body.senderData?.chatId || "";
 
-    // Сохраняем raw
-    const { data: msg } = await sb.from("chat_messages").insert({
+    const { data: message } = await sb.from("chat_messages").insert({
       channel: "whatsapp",
       chat_name: chatName,
       sender_name: senderName,
@@ -37,51 +30,45 @@ Deno.serve(async (req) => {
       raw: body,
     }).select().single();
 
-    // AI парсинг через Lovable AI
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
+        max_tokens: 700,
         messages: [
-          { role: "system", content: `Ты парсер сообщений учителей в WhatsApp школы Aqbobek. Извлеки ОДНУ из сущностей:
+          { role: "system", content: `Ты парсер входящих сообщений учителей школы Mektep AI в Актобе. Извлеки ровно одну сущность:
 
-1) attendance — учитель отчитывается о посещаемости класса. Пример: "1А - 25 детей, 2 болеют" или "8B 18 присутствует 2 отсутствует"
-   → {"intent":"attendance","class":"8B","present":18,"absent":2,"sick":2}
+1) attendance → {"intent":"attendance","class":"8B","present":18,"absent":2,"sick":1}
+2) incident → {"intent":"incident","title":"...","location":"...","priority":"low|normal|high"}
+3) task_request → {"intent":"task_request","title":"...","description":"..."}
+4) other → {"intent":"other"}
 
-2) incident — поломка/проблема в школе. Пример: "В кабинете 12 сломалась парта" или "потёк кран в туалете"
-   → {"intent":"incident","title":"...","location":"...","priority":"low|normal|high"}
-
-3) task_request — учитель просит что-то сделать или предлагает помощь
-   → {"intent":"task_request","title":"...","description":"..."}
-
-4) other — обычное общение
-   → {"intent":"other"}
-
-Отвечай ТОЛЬКО валидным JSON, без markdown, без объяснений.` },
+Верни только JSON без markdown.` },
           { role: "user", content: text || "(пусто)" },
         ],
       }),
     });
-    const aiData = await aiRes.json();
+    const aiData = await aiResponse.json();
     const raw = aiData.choices?.[0]?.message?.content || "{}";
-    const cleaned = raw.replace(/```json\n?|```/g, "").trim();
+    const cleaned = raw.replace(/```json
+?|```/g, "").trim();
     let parsed: any = { intent: "other" };
-    try { parsed = JSON.parse(cleaned); } catch {}
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {}
 
-    // Обновляем сообщение
     await sb.from("chat_messages").update({
       parsed_intent: parsed.intent,
       parsed_data: parsed,
-    }).eq("id", msg.id);
+    }).eq("id", message.id);
 
-    // Действия
     if (parsed.intent === "attendance" && parsed.class) {
-      const { data: cls } = await sb.from("classes").select("id").ilike("name", parsed.class).maybeSingle();
-      if (cls) {
+      const { data: schoolClass } = await sb.from("classes").select("id").ilike("name", parsed.class).maybeSingle();
+      if (schoolClass) {
         await sb.from("attendance").insert({
-          class_id: cls.id,
+          class_id: schoolClass.id,
           present_count: parsed.present || 0,
           absent_count: parsed.absent || 0,
           sick_count: parsed.sick || 0,
@@ -105,14 +92,22 @@ Deno.serve(async (req) => {
         body: `${senderName}: ${parsed.title || text.slice(0, 80)}`,
         payload: { chat_id: chatId, sender: senderName },
       });
+    } else if (parsed.intent === "task_request") {
+      await sb.from("tasks").insert({
+        title: parsed.title || text.slice(0, 80),
+        description: parsed.description || text,
+        source: "whatsapp",
+        source_message: text,
+        priority: "normal",
+      });
     }
 
     return new Response(JSON.stringify({ ok: true, parsed }), {
       headers: { ...cors, "Content-Type": "application/json" },
     });
-  } catch (e: any) {
-    console.error("wa-webhook error:", e);
-    return new Response(JSON.stringify({ error: e.message }), {
+  } catch (error: any) {
+    console.error("wa-webhook error:", error);
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...cors, "Content-Type": "application/json" },
     });
