@@ -50,8 +50,7 @@ const handleGlobal = async (transcript: string, navigate: (p: string) => void): 
     toast.dismiss("gen-rep");
     if (error) throw error;
     navigate("/reports");
-    return data?.report?.split("
-").slice(0, 2).join(" ") || "Свод готов";
+    return data?.report?.split("\n").slice(0, 2).join(" ") || "Свод готов";
   }
 
   for (const [re, path, msg] of routes) {
