@@ -1,6 +1,7 @@
 import { toast } from "sonner";
 
-type RecognitionCtor = new () => SpeechRecognition;
+// Web Speech API не входит в стандартные типы TypeScript — объявляем как any
+type RecognitionCtor = new () => any;
 
 declare global {
   interface Window {
