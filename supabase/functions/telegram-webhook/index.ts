@@ -77,8 +77,7 @@ ID этого чата: \`${chatId}\``);
     const raw = aiJson.choices?.[0]?.message?.content || "{}";
     let parsed: any = { intent: "other" };
     try {
-      parsed = JSON.parse(raw.replace(/```json
-?|```/g, "").trim());
+      parsed = JSON.parse(raw.replace(/```json\n?|```/g, "").trim());
     } catch {}
 
     await sb.from("chat_messages").update({ parsed_intent: parsed.intent, parsed_data: parsed }).eq("id", saved.id);
