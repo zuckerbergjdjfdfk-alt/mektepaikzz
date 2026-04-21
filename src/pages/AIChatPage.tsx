@@ -15,15 +15,13 @@ type Msg = { role: "user" | "assistant"; content: string };
 const AIChatPage = () => {
   const navigate = useNavigate();
   const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", content: "Здравствуйте, Айгуль Серикбаевна! 👋
-
-Я ваш AI-завуч Mektep AI по школе в Актобе. Могу сгенерировать расписание, подготовить приказ, собрать утренний свод и озвучить ответ вслух." },
+    { role: "assistant", content: "Здравствуйте, Айгуль Серикбаевна! 👋\n\nЯ ваш AI-завуч Mektep AI по школе в Актобе. Могу сгенерировать расписание, подготовить приказ, собрать утренний свод и озвучить ответ вслух." },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState(false);
   const [voiceMode, setVoiceMode] = useState(true);
-  const recRef = useRef<SpeechRecognition | null>(null);
+  const recRef = useRef<any>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

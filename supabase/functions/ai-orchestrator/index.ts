@@ -28,9 +28,7 @@ const SYSTEM_PROMPT = `Ты — AI-завуч школы Mektep AI, г. Акто
 - После выполненного действия отвечай коротко и по делу.
 - Не выдумывай данные о сотрудниках и классах.`;
 
-const VOICE_HINT = "
-
-ВАЖНО: ответ голосовой — максимум 2 коротких предложения, без markdown и списков.";
+const VOICE_HINT = "\n\nВАЖНО: ответ голосовой — максимум 2 коротких предложения, без markdown и списков.";
 
 const TOOLS = [
   { type: "function", function: { name: "create_tasks", description: "Создать задачи из голосовой команды.", parameters: { type: "object", properties: { tasks: { type: "array", items: { type: "object", properties: { title: { type: "string" }, description: { type: "string" }, assignee_name: { type: "string" }, priority: { type: "string", enum: ["low", "normal", "high"] }, due_hint: { type: "string" } }, required: ["title", "assignee_name", "priority"] } } }, required: ["tasks"] } } },

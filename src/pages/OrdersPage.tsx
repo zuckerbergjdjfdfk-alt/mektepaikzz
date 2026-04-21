@@ -21,7 +21,7 @@ const OrdersPage = () => {
   const [editInstr, setEditInstr] = useState("");
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState(false);
-  const recRef = useRef<SpeechRecognition | null>(null);
+  const recRef = useRef<any>(null);
 
   const load = async () => {
     const [templatesResult, ordersResult] = await Promise.all([
@@ -168,11 +168,8 @@ ${generated}
       .replace(/^## (.*)$/gm, "<h2>$1</h2>")
       .replace(/^### (.*)$/gm, "<h3>$1</h3>")
       .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
-      .replace(/
-
-/g, "</p><p>")
-      .replace(/
-/g, "<br/>");
+      .replace(/\n\n/g, "</p><p>")
+      .replace(/\n/g, "<br/>");
     popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${selected?.title || "Приказ"}</title>
       <style>
         @page { size: A4; margin: 2.5cm 2cm; }
