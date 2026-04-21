@@ -52,8 +52,7 @@ Deno.serve(async (req) => {
     });
     const aiData = await aiResponse.json();
     const raw = aiData.choices?.[0]?.message?.content || "{}";
-    const cleaned = raw.replace(/```json
-?|```/g, "").trim();
+    const cleaned = raw.replace(/```json\n?|```/g, "").trim();
     let parsed: any = { intent: "other" };
     try {
       parsed = JSON.parse(cleaned);
