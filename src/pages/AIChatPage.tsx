@@ -21,7 +21,7 @@ const AIChatPage = () => {
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState(false);
   const [voiceMode, setVoiceMode] = useState(true);
-  const recRef = useRef<SpeechRecognition | null>(null);
+  const recRef = useRef<any>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

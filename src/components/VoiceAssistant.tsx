@@ -74,7 +74,7 @@ export const VoiceAssistant = () => {
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
   const [lastTranscript, setLastTranscript] = useState("");
-  const recRef = useRef<SpeechRecognition | null>(null);
+  const recRef = useRef<any>(null);
 
   useEffect(() => {
     primeSpeech();

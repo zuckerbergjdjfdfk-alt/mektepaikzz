@@ -21,7 +21,7 @@ const OrdersPage = () => {
   const [editInstr, setEditInstr] = useState("");
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState(false);
-  const recRef = useRef<SpeechRecognition | null>(null);
+  const recRef = useRef<any>(null);
 
   const load = async () => {
     const [templatesResult, ordersResult] = await Promise.all([
