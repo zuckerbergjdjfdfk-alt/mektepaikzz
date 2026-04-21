@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
         replyText = `⚠️ Не нашёл учителя "${parsed.teacher_name || senderName}" в базе.`;
       }
     } else if (parsed.intent === "attendance" && parsed.class) {
-      const { data: schoolClass } = await sb.from("classes").select("id").ilike("name", parsed.class).maybeSingle();
+      const { data: schoolClass } = await sb.from("classes").select("id,name").ilike("name", parsed.class).maybeSingle();
       if (schoolClass) {
         await sb.from("attendance").insert({
           class_id: schoolClass.id,
@@ -105,6 +105,9 @@ Deno.serve(async (req) => {
           source: "whatsapp",
           notes: text,
         });
+        replyText = `✅ Принято: ${schoolClass.name} → присутствуют ${parsed.present || 0}, отсутствуют ${parsed.absent || 0}${parsed.sick ? `, болеют ${parsed.sick}` : ""}`;
+      } else {
+        replyText = `⚠️ Не нашёл класс "${parsed.class}".`;
       }
     } else if (parsed.intent === "incident") {
       await sb.from("incidents").insert({
@@ -122,6 +125,7 @@ Deno.serve(async (req) => {
         body: `${senderName}: ${parsed.title || text.slice(0, 80)}`,
         payload: { chat_id: chatId, sender: senderName },
       });
+      replyText = `🚨 Инцидент зарегистрирован: ${parsed.title || text.slice(0, 40)}\nЛокация: ${parsed.location || "—"}\nПриоритет: ${parsed.priority || "normal"}`;
     } else if (parsed.intent === "task_request") {
       await sb.from("tasks").insert({
         title: parsed.title || text.slice(0, 80),
@@ -130,6 +134,19 @@ Deno.serve(async (req) => {
         source_message: text,
         priority: "normal",
       });
+      replyText = `📋 Задача создана: ${parsed.title || text.slice(0, 40)}`;
+    }
+
+    if (replyText && chatId) {
+      try {
+        await fetch(`${backendUrl}/functions/v1/whatsapp-send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
+          body: JSON.stringify({ chat_id: chatId, message: replyText }),
+        });
+      } catch (e) {
+        console.error("wa-send reply failed:", e);
+      }
     }
 
     return new Response(JSON.stringify({ ok: true, parsed }), {
