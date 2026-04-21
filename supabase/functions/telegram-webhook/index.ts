@@ -64,10 +64,12 @@ ID этого чата: \`${chatId}\``);
         max_tokens: 700,
         messages: [
           { role: "system", content: `Парсер сообщений Telegram для школы Mektep AI в Актобе. Верни JSON одного типа:
+- teacher_absence: учитель сообщает что не придёт/болеет/опоздает {"intent":"teacher_absence","teacher_name":"Фамилия Имя или просто имя как написано","reason":"болезнь|опоздание|отгул","day_offset":0}
 - attendance: {"intent":"attendance","class":"8B","present":N,"absent":N,"sick":N}
 - incident: {"intent":"incident","title":"...","location":"кабинет/место","priority":"low|normal|high"}
 - task_request: {"intent":"task_request","title":"...","description":"..."}
 - other: {"intent":"other"}
+Если учитель пишет от себя ("я заболел","не приду","опоздаю") — teacher_name это отправитель: "${senderName}".
 Только JSON, без markdown.` },
           { role: "user", content: text },
         ],
@@ -83,7 +85,32 @@ ID этого чата: \`${chatId}\``);
     await sb.from("chat_messages").update({ parsed_intent: parsed.intent, parsed_data: parsed }).eq("id", saved.id);
 
     let reply = "";
-    if (parsed.intent === "attendance" && parsed.class) {
+    if (parsed.intent === "teacher_absence") {
+      const name = (parsed.teacher_name || senderName || "").toLowerCase();
+      const first = name.split(/\s+/).filter(Boolean)[0] || name;
+      const { data: teachers } = await sb.from("staff").select("id, full_name").eq("role", "teacher");
+      const teacher = teachers?.find((t: any) => t.full_name.toLowerCase().includes(first));
+      if (teacher) {
+        const subRes = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/smart-substitute`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}` },
+          body: JSON.stringify({ teacher_id: teacher.id }),
+        });
+        const subData = await subRes.json();
+        const lines = (subData.substitutions || []).map((s: any) =>
+          s.substitute ? `• ${s.period} урок ${s.class_name} (${s.subject}) → ${s.substitute}` : `• ${s.period} урок ${s.class_name} — ⚠️ замена не найдена`
+        ).join("\n");
+        reply = `🤖 Принято, ${teacher.full_name}. Причина: ${parsed.reason || "не указана"}.\n\nЗамены на сегодня:\n${lines || "Нет уроков сегодня."}`;
+        await sb.from("notifications").insert({
+          type: "schedule_conflict",
+          title: "Учитель отсутствует — замены назначены",
+          body: `${teacher.full_name}: ${subData.substitutions?.length || 0} уроков`,
+          payload: { teacher_id: teacher.id, source: "telegram" },
+        });
+      } else {
+        reply = `⚠️ Не нашёл учителя "${parsed.teacher_name || senderName}" в базе. Сообщите администратору.`;
+      }
+    } else if (parsed.intent === "attendance" && parsed.class) {
       const { data: schoolClass } = await sb.from("classes").select("id,name").ilike("name", parsed.class).maybeSingle();
       if (schoolClass) {
         await sb.from("attendance").insert({

@@ -40,11 +40,13 @@ Deno.serve(async (req) => {
         messages: [
           { role: "system", content: `Ты парсер входящих сообщений учителей школы Mektep AI в Актобе. Извлеки ровно одну сущность:
 
-1) attendance → {"intent":"attendance","class":"8B","present":18,"absent":2,"sick":1}
-2) incident → {"intent":"incident","title":"...","location":"...","priority":"low|normal|high"}
-3) task_request → {"intent":"task_request","title":"...","description":"..."}
-4) other → {"intent":"other"}
+1) teacher_absence (учитель пишет что не придёт/болеет/опоздает) → {"intent":"teacher_absence","teacher_name":"имя как в чате","reason":"болезнь|опоздание|отгул"}
+2) attendance → {"intent":"attendance","class":"8B","present":18,"absent":2,"sick":1}
+3) incident → {"intent":"incident","title":"...","location":"...","priority":"low|normal|high"}
+4) task_request → {"intent":"task_request","title":"...","description":"..."}
+5) other → {"intent":"other"}
 
+Если учитель пишет от себя ("я заболел","не приду") — teacher_name = отправитель: "${senderName}".
 Верни только JSON без markdown.` },
           { role: "user", content: text || "(пусто)" },
         ],
@@ -63,8 +65,37 @@ Deno.serve(async (req) => {
       parsed_data: parsed,
     }).eq("id", message.id);
 
-    if (parsed.intent === "attendance" && parsed.class) {
-      const { data: schoolClass } = await sb.from("classes").select("id").ilike("name", parsed.class).maybeSingle();
+    let replyText = "";
+    const backendUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    if (parsed.intent === "teacher_absence") {
+      const name = (parsed.teacher_name || senderName || "").toLowerCase();
+      const first = name.split(/\s+/).filter(Boolean)[0] || name;
+      const { data: teachers } = await sb.from("staff").select("id, full_name").eq("role", "teacher");
+      const teacher = teachers?.find((t: any) => t.full_name.toLowerCase().includes(first));
+      if (teacher) {
+        const subRes = await fetch(`${backendUrl}/functions/v1/smart-substitute`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
+          body: JSON.stringify({ teacher_id: teacher.id }),
+        });
+        const subData = await subRes.json();
+        const lines = (subData.substitutions || []).map((s: any) =>
+          s.substitute ? `• ${s.period} урок ${s.class_name} (${s.subject}) → ${s.substitute}` : `• ${s.period} урок ${s.class_name} — ⚠️ замена не найдена`
+        ).join("\n");
+        replyText = `🤖 Принято, ${teacher.full_name}. Причина: ${parsed.reason || "не указана"}.\n\nЗамены на сегодня:\n${lines || "Нет уроков сегодня."}`;
+        await sb.from("notifications").insert({
+          type: "schedule_conflict",
+          title: "Учитель отсутствует — замены назначены",
+          body: `${teacher.full_name}: ${subData.substitutions?.length || 0} уроков`,
+          payload: { teacher_id: teacher.id, source: "whatsapp" },
+        });
+      } else {
+        replyText = `⚠️ Не нашёл учителя "${parsed.teacher_name || senderName}" в базе.`;
+      }
+    } else if (parsed.intent === "attendance" && parsed.class) {
+      const { data: schoolClass } = await sb.from("classes").select("id,name").ilike("name", parsed.class).maybeSingle();
       if (schoolClass) {
         await sb.from("attendance").insert({
           class_id: schoolClass.id,
@@ -74,6 +105,9 @@ Deno.serve(async (req) => {
           source: "whatsapp",
           notes: text,
         });
+        replyText = `✅ Принято: ${schoolClass.name} → присутствуют ${parsed.present || 0}, отсутствуют ${parsed.absent || 0}${parsed.sick ? `, болеют ${parsed.sick}` : ""}`;
+      } else {
+        replyText = `⚠️ Не нашёл класс "${parsed.class}".`;
       }
     } else if (parsed.intent === "incident") {
       await sb.from("incidents").insert({
@@ -91,6 +125,7 @@ Deno.serve(async (req) => {
         body: `${senderName}: ${parsed.title || text.slice(0, 80)}`,
         payload: { chat_id: chatId, sender: senderName },
       });
+      replyText = `🚨 Инцидент зарегистрирован: ${parsed.title || text.slice(0, 40)}\nЛокация: ${parsed.location || "—"}\nПриоритет: ${parsed.priority || "normal"}`;
     } else if (parsed.intent === "task_request") {
       await sb.from("tasks").insert({
         title: parsed.title || text.slice(0, 80),
@@ -99,6 +134,19 @@ Deno.serve(async (req) => {
         source_message: text,
         priority: "normal",
       });
+      replyText = `📋 Задача создана: ${parsed.title || text.slice(0, 40)}`;
+    }
+
+    if (replyText && chatId) {
+      try {
+        await fetch(`${backendUrl}/functions/v1/whatsapp-send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
+          body: JSON.stringify({ chat_id: chatId, message: replyText }),
+        });
+      } catch (e) {
+        console.error("wa-send reply failed:", e);
+      }
     }
 
     return new Response(JSON.stringify({ ok: true, parsed }), {
