@@ -213,9 +213,9 @@ Deno.serve(async (req) => {
             method: "POST",
             headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
             body: JSON.stringify({
-              model: "google/gemini-2.5-flash",
+              model: "google/gemini-2.5-pro",
               messages: [
-                { role: "system", content: "Ты — AI-методист Aqbobek Lyceum (г. Актобе). Дай краткий вердикт по сгенерированному расписанию: 2-4 строки на русском, без markdown." },
+                { role: "system", content: "Ты — AI-методист школы Mektep AI в Актобе. Дай краткий вердикт по сгенерированному расписанию: 2-4 строки на русском, без markdown." },
                 { role: "user", content: `Создано ${slots.length} уроков, ${lentas} лент английского по 4 уровням, ${classes.length} классов, ${teachers.length} учителей.\nПерегружены: ${overloaded.map((x) => `${x.name} (${x.load}/${x.max}ч)`).join(", ") || "никто"}.` },
               ],
             }),

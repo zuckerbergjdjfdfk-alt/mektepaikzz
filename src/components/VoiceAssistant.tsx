@@ -1,31 +1,24 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Mic, MicOff, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { getSpeechRecognition, primeSpeech, requestMicrophoneAccess, speakText, supportsSpeechRecognition } from "@/lib/voice";
 
 type Listener = (text: string) => boolean | Promise<boolean>;
 const listeners = new Set<Listener>();
 
 export const registerVoiceListener = (fn: Listener) => {
   listeners.add(fn);
-  return () => { listeners.delete(fn); };
-};
-
-const speak = (text: string) => {
-  if (!("speechSynthesis" in window)) return;
-  const utter = new SpeechSynthesisUtterance(text.replace(/[*_#`>\-]/g, ""));
-  utter.lang = "ru-RU";
-  utter.rate = 1.05;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utter);
+  return () => {
+    listeners.delete(fn);
+  };
 };
 
 const handleGlobal = async (transcript: string, navigate: (p: string) => void): Promise<string> => {
   const t = transcript.toLowerCase();
-  // Навигация
   const routes: [RegExp, string, string][] = [
     [/(расписан|урок)/, "/schedule", "Открываю расписание"],
     [/(приказ)/, "/orders", "Открываю приказы"],
@@ -37,18 +30,18 @@ const handleGlobal = async (transcript: string, navigate: (p: string) => void): 
     [/(сотрудник|учител|педагог)/, "/staff", "Открываю сотрудников"],
     [/(класс)/, "/classes", "Открываю классы"],
     [/(задач)/, "/tasks", "Открываю задачи"],
+    [/(профил)/, "/profile", "Открываю профиль"],
     [/(настройк)/, "/settings", "Открываю настройки"],
     [/(главн|дашборд|home)/, "/", "Открываю главную"],
   ];
 
-  // Быстрые действия
   if (/(сгенер|построй|создай|сделай).*расписан/.test(t)) {
     toast.loading("Генерирую расписание через AI...", { id: "gen-sch" });
     const { data, error } = await supabase.functions.invoke("schedule-generator", { body: { mode: "ai" } });
     toast.dismiss("gen-sch");
     if (error) throw error;
     navigate("/schedule");
-    return `Готово. Создал ${data?.slots_created || 0} уроков, лент английского: ${data?.lentas || 0}.`;
+    return `Готово. Создал ${data?.slots_created || 0} уроков, лент ${data?.lentas || 0}.`;
   }
 
   if (/(утрен|свод|отчёт|отчет).*готов|сгенер.*(свод|отчёт|отчет)|сделай.*отчёт/.test(t)) {
@@ -57,7 +50,8 @@ const handleGlobal = async (transcript: string, navigate: (p: string) => void): 
     toast.dismiss("gen-rep");
     if (error) throw error;
     navigate("/reports");
-    return data?.report?.split("\n").slice(0, 3).join(" ") || "Свод готов";
+    return data?.report?.split("
+").slice(0, 2).join(" ") || "Свод готов";
   }
 
   for (const [re, path, msg] of routes) {
@@ -67,7 +61,6 @@ const handleGlobal = async (transcript: string, navigate: (p: string) => void): 
     }
   }
 
-  // Передаём в AI-чат как обычное сообщение
   toast.loading("AI думает...", { id: "ai-think" });
   const { data, error } = await supabase.functions.invoke("ai-orchestrator", {
     body: { messages: [{ role: "user", content: transcript }], voice_mode: true },
@@ -79,70 +72,92 @@ const handleGlobal = async (transcript: string, navigate: (p: string) => void): 
 
 export const VoiceAssistant = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
   const [lastTranscript, setLastTranscript] = useState("");
-  const recRef = useRef<any>(null);
+  const recRef = useRef<SpeechRecognition | null>(null);
 
-  // Скрываем на AI-чате — там свой микрофон
-  if (location.pathname === "/ai-chat") return null;
+  useEffect(() => {
+    primeSpeech();
+    return () => window.speechSynthesis?.cancel();
+  }, []);
 
-  const start = () => {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) {
-      toast.error("Голосовой ввод доступен только в Chrome / Edge");
+  const start = async () => {
+    if (!supportsSpeechRecognition()) {
+      toast.error("Голосовой ввод доступен в Chrome или Edge");
       return;
     }
+
     if (recording) {
       recRef.current?.stop();
       return;
     }
-    const rec = new SR();
-    rec.lang = "ru-RU";
-    rec.continuous = false;
-    rec.interimResults = true;
-    let finalText = "";
 
-    rec.onresult = (e: any) => {
-      let interim = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) finalText += t;
-        else interim += t;
-      }
-      setLastTranscript(finalText || interim);
-    };
-    rec.onerror = (e: any) => {
-      setRecording(false);
-      if (e.error !== "no-speech" && e.error !== "aborted") {
-        toast.error(`Микрофон: ${e.error}`);
-      }
-    };
-    rec.onend = async () => {
-      setRecording(false);
-      const transcript = finalText.trim();
-      if (!transcript) return;
-      setBusy(true);
-      try {
-        // Сначала даём шанс локальному слушателю страницы
-        for (const l of listeners) {
-          const consumed = await l(transcript);
-          if (consumed) { setBusy(false); return; }
+    try {
+      await requestMicrophoneAccess();
+      const SR = getSpeechRecognition();
+      if (!SR) throw new Error("SpeechRecognition не найден");
+
+      const rec = new SR();
+      rec.lang = "ru-RU";
+      rec.continuous = false;
+      rec.interimResults = true;
+      let finalText = "";
+      let interimText = "";
+
+      rec.onresult = (event: SpeechRecognitionEvent) => {
+        interimText = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const chunk = event.results[i][0]?.transcript || "";
+          if (event.results[i].isFinal) finalText += `${chunk} `;
+          else interimText += chunk;
         }
-        const reply = await handleGlobal(transcript, navigate);
-        toast.success(reply, { duration: 5000 });
-        speak(reply);
-      } catch (err: any) {
-        toast.error(err.message || "Ошибка голосовой команды");
-      } finally {
-        setBusy(false);
-        setLastTranscript("");
-      }
-    };
-    rec.start();
-    recRef.current = rec;
-    setRecording(true);
+        setLastTranscript((finalText || interimText).trim());
+      };
+
+      rec.onerror = (event: SpeechRecognitionErrorEvent) => {
+        setRecording(false);
+        if (event.error !== "no-speech" && event.error !== "aborted") {
+          toast.error(`Микрофон: ${event.error}`);
+        }
+      };
+
+      rec.onend = async () => {
+        setRecording(false);
+        const transcript = (finalText || interimText).trim();
+        if (!transcript) {
+          setLastTranscript("");
+          return;
+        }
+
+        setBusy(true);
+        try {
+          for (const listener of listeners) {
+            const consumed = await listener(transcript);
+            if (consumed) {
+              await speakText("Готово");
+              return;
+            }
+          }
+
+          const reply = await handleGlobal(transcript, navigate);
+          toast.success(reply, { duration: 5000 });
+          await speakText(reply);
+        } catch (error: any) {
+          toast.error(error.message || "Ошибка голосовой команды");
+        } finally {
+          setBusy(false);
+          setLastTranscript("");
+        }
+      };
+
+      rec.start();
+      recRef.current = rec;
+      setLastTranscript("");
+      setRecording(true);
+    } catch (error: any) {
+      toast.error(error?.message || "Не удалось включить микрофон");
+    }
   };
 
   return (
@@ -173,6 +188,7 @@ export const VoiceAssistant = () => {
         }`}
         disabled={busy}
         aria-label="Голосовая команда"
+        title={supportsSpeechRecognition() ? "Голосовая команда" : "Голос недоступен в этом браузере"}
       >
         {busy ? <Loader2 className="h-6 w-6 animate-spin" /> : recording ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
       </Button>

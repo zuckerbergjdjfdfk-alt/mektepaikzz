@@ -4,8 +4,8 @@ import { Sparkles } from "lucide-react";
 
 export const SplashScreen = ({ onDone }: { onDone: () => void }) => {
   useEffect(() => {
-    const t = setTimeout(onDone, 1600);
-    return () => clearTimeout(t);
+    const timeoutId = setTimeout(onDone, 1600);
+    return () => clearTimeout(timeoutId);
   }, [onDone]);
 
   return (
@@ -20,7 +20,7 @@ export const SplashScreen = ({ onDone }: { onDone: () => void }) => {
           initial={{ scale: 0.6, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="relative flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-primary to-primary/60 shadow-2xl"
+          className="relative flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-primary shadow-2xl"
         >
           <Sparkles className="h-12 w-12 text-primary-foreground" />
           <motion.div
@@ -36,7 +36,7 @@ export const SplashScreen = ({ onDone }: { onDone: () => void }) => {
           className="text-center"
         >
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Mektep AI</h1>
-          <p className="mt-1 text-sm text-muted-foreground">AI-завуч · Aqbobek Lyceum</p>
+          <p className="mt-1 text-sm text-muted-foreground">AI-завуч · Актобе</p>
         </motion.div>
       </div>
     </motion.div>
