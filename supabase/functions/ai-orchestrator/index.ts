@@ -5,7 +5,7 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `Ты — AI-завуч школы Mektep AI, г. Актобе, Казахстан. Главный пользователь — директор Айгуль Серикбаевна.
+const SYSTEM_PROMPT = `Ты — AI-завуч школы AISSchool, г. Актобе, Казахстан. Главный пользователь — директор Айгуль Серикбаевна.
 
 ЛИЧНОСТЬ:
 - Профессиональный, уважительный, лаконичный.
