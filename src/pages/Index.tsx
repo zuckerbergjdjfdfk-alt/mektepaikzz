@@ -3,45 +3,57 @@ import { StatCard } from "@/components/StatCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, GraduationCap, AlertTriangle, ClipboardList, TrendingUp, Sparkles, Calendar, MessageSquare, Bot, ArrowRight } from "lucide-react";
+import { Users, GraduationCap, AlertTriangle, ClipboardList, TrendingUp, Sparkles, Calendar, MessageSquare, Bot, ArrowRight, UserX, FileText, Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useI18n } from "@/lib/i18n";
 
 const Index = () => {
+  const { t } = useI18n();
   const [stats, setStats] = useState({ staff: 0, students: 0, classes: 0, present: 0, absent: 0, openIncidents: 0, pendingTasks: 0 });
   const [notifications, setNotifications] = useState<any[]>([]);
   const [incidents, setIncidents] = useState<any[]>([]);
   const [chats, setChats] = useState<any[]>([]);
+  const [absences, setAbsences] = useState<any[]>([]);
+
+  const load = async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const [staffR, classR, attR, incR, taskR, notR, chR, absR] = await Promise.all([
+      supabase.from("staff").select("*", { count: "exact", head: true }),
+      supabase.from("classes").select("student_count"),
+      supabase.from("attendance").select("present_count, absent_count").eq("date", today),
+      supabase.from("incidents").select("*").eq("status", "open"),
+      supabase.from("tasks").select("*", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(5),
+      supabase.from("chat_messages").select("*").order("created_at", { ascending: false }).limit(6),
+      supabase.from("teacher_absences").select("*, generated_orders(id, title, pdf_url_current)").eq("absence_date", today).order("created_at", { ascending: false }),
+    ]);
+    const students = (classR.data || []).reduce((s, c: any) => s + c.student_count, 0);
+    const present = (attR.data || []).reduce((s, c: any) => s + c.present_count, 0);
+    const absent = (attR.data || []).reduce((s, c: any) => s + c.absent_count, 0);
+    setStats({
+      staff: staffR.count || 0,
+      students,
+      classes: (classR.data || []).length,
+      present, absent,
+      openIncidents: (incR.data || []).length,
+      pendingTasks: taskR.count || 0,
+    });
+    setNotifications(notR.data || []);
+    setIncidents(incR.data || []);
+    setChats(chR.data || []);
+    setAbsences(absR.data || []);
+  };
 
   useEffect(() => {
-    const load = async () => {
-      const [staffR, classR, attR, incR, taskR, notR, chR] = await Promise.all([
-        supabase.from("staff").select("*", { count: "exact", head: true }),
-        supabase.from("classes").select("student_count"),
-        supabase.from("attendance").select("present_count, absent_count").eq("date", new Date().toISOString().slice(0,10)),
-        supabase.from("incidents").select("*").eq("status", "open"),
-        supabase.from("tasks").select("*", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(5),
-        supabase.from("chat_messages").select("*").order("created_at", { ascending: false }).limit(6),
-      ]);
-      const students = (classR.data || []).reduce((s, c: any) => s + c.student_count, 0);
-      const present = (attR.data || []).reduce((s, c: any) => s + c.present_count, 0);
-      const absent = (attR.data || []).reduce((s, c: any) => s + c.absent_count, 0);
-      setStats({
-        staff: staffR.count || 0,
-        students,
-        classes: (classR.data || []).length,
-        present, absent,
-        openIncidents: (incR.data || []).length,
-        pendingTasks: taskR.count || 0,
-      });
-      setNotifications(notR.data || []);
-      setIncidents(incR.data || []);
-      setChats(chR.data || []);
-    };
     load();
+    const channel = supabase
+      .channel("dashboard-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "teacher_absences" }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   return (
@@ -54,14 +66,13 @@ const Index = () => {
             <div>
               <div className="flex items-center gap-2 text-sm opacity-90 mb-2">
                 <Sparkles className="h-4 w-4 text-secondary" />
-                <span>Утренний свод · {new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })}</span>
+                <span>AISSchool · {new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })}</span>
               </div>
               <h1 className="font-display text-4xl lg:text-5xl font-extrabold text-balance">
                 Доброе утро, <span className="text-secondary">Айгуль Серикбаевна</span>
               </h1>
               <p className="mt-3 text-lg opacity-90 max-w-2xl">
-                Сегодня в школе <b>{stats.present}</b> учеников · отсутствуют <b>{stats.absent}</b> · 
-                заявка в столовую: <b className="text-secondary">{stats.present} порций</b> уже отправлена.
+                Сегодня в школе <b>{stats.present}</b> учеников · отсутствуют <b>{stats.absent}</b>.
               </p>
             </div>
             <div className="flex flex-col gap-3">
@@ -81,15 +92,74 @@ const Index = () => {
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon={Users} label="Сотрудников" value={stats.staff} accent="primary" subtitle="20 активных" />
+          <StatCard icon={Users} label="Сотрудников" value={stats.staff} accent="primary" />
           <StatCard icon={GraduationCap} label="Учеников" value={stats.students} trend={`${stats.present} в школе`} accent="gold" />
           <StatCard icon={AlertTriangle} label="Открытых инцидентов" value={stats.openIncidents} accent="destructive" />
           <StatCard icon={ClipboardList} label="Активных задач" value={stats.pendingTasks} accent="success" />
         </div>
 
+        {/* Teacher absences today */}
+        <Card className="p-5 glass border-border/50">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-xl font-bold flex items-center gap-2">
+              <UserX className="h-5 w-5 text-warning" /> {t("common.absences_today")}
+            </h2>
+            <Badge variant="outline">{absences.length}</Badge>
+          </div>
+          {absences.length === 0 ? (
+            <div className="text-sm text-muted-foreground py-4 text-center">{t("common.no_absences")}</div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-3">
+              {absences.map((a) => {
+                const subs = (a.substitutions || []) as any[];
+                const order = a.generated_orders;
+                return (
+                  <div key={a.id} className="p-4 rounded-xl glass-soft">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-semibold">{a.teacher_name}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {a.reason || "причина не указана"} · {new Date(a.starts_at || a.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                      </div>
+                      <Badge className="bg-warning/15 text-warning-foreground border-warning/30">{a.source}</Badge>
+                    </div>
+                    {subs.length > 0 && (
+                      <div className="mt-3 space-y-1">
+                        {subs.slice(0, 4).map((s: any, i: number) => (
+                          <div key={i} className="text-xs flex items-center gap-2">
+                            <span className="text-muted-foreground">{s.period} ур · {s.class_name}</span>
+                            <ArrowRight className="h-3 w-3" />
+                            <span className="font-medium">{s.substitute || "не назначен"}</span>
+                          </div>
+                        ))}
+                        {subs.length > 4 && <div className="text-xs text-muted-foreground">…ещё {subs.length - 4}</div>}
+                      </div>
+                    )}
+                    <div className="mt-3 flex gap-2">
+                      {order?.pdf_url_current ? (
+                        <a href={order.pdf_url_current} target="_blank" rel="noreferrer">
+                          <Button size="sm" variant="outline" className="gap-1 h-7"><Download className="h-3 w-3" /> Приказ PDF</Button>
+                        </a>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px]">приказ генерируется…</Badge>
+                      )}
+                      <Link to="/substitutions">
+                        <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs">
+                          <Calendar className="h-3 w-3" /> Замены
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Notifications */}
-          <Card className="p-5 bg-gradient-card border-border/50 lg:col-span-2">
+          <Card className="p-5 glass border-border/50 lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-xl font-bold">AI-уведомления</h2>
               <Badge className="bg-primary/10 text-primary border-0">{notifications.length}</Badge>
@@ -100,9 +170,11 @@ const Index = () => {
                   <div className={`h-10 w-10 shrink-0 rounded-xl flex items-center justify-center ${
                     n.type === "incident" ? "bg-destructive/10 text-destructive" :
                     n.type === "schedule_conflict" ? "bg-warning/15 text-warning" :
+                    n.type === "teacher_absence" ? "bg-warning/15 text-warning" :
                     "bg-primary/10 text-primary"
                   }`}>
                     {n.type === "incident" ? <AlertTriangle className="h-5 w-5" /> :
+                     n.type === "teacher_absence" ? <UserX className="h-5 w-5" /> :
                      n.type === "schedule_conflict" ? <Calendar className="h-5 w-5" /> :
                      <TrendingUp className="h-5 w-5" />}
                   </div>
@@ -115,8 +187,7 @@ const Index = () => {
             </div>
           </Card>
 
-          {/* Live chats */}
-          <Card className="p-5 bg-gradient-card border-border/50">
+          <Card className="p-5 glass border-border/50">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-xl font-bold">Живые чаты</h2>
               <Link to="/chats" className="text-xs text-primary font-medium flex items-center gap-1 hover:underline">
@@ -138,8 +209,7 @@ const Index = () => {
             </div>
           </Card>
 
-          {/* Incidents */}
-          <Card className="p-5 bg-gradient-card border-border/50 lg:col-span-2">
+          <Card className="p-5 glass border-border/50 lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-xl font-bold">Открытые инциденты</h2>
               <Link to="/incidents"><Button variant="ghost" size="sm">Все</Button></Link>
@@ -161,13 +231,12 @@ const Index = () => {
             </div>
           </Card>
 
-          {/* Quick actions */}
-          <Card className="p-5 bg-gradient-card border-border/50">
+          <Card className="p-5 glass border-border/50">
             <h2 className="font-display text-xl font-bold mb-4">Быстрые действия</h2>
             <div className="space-y-2">
               <Link to="/schedule"><Button variant="outline" className="w-full justify-start gap-2"><Calendar className="h-4 w-4" /> Сгенерировать расписание</Button></Link>
-              <Link to="/orders"><Button variant="outline" className="w-full justify-start gap-2"><Sparkles className="h-4 w-4" /> Создать приказ</Button></Link>
-              <Link to="/ai-chat"><Button variant="outline" className="w-full justify-start gap-2"><Bot className="h-4 w-4" /> Голосовая команда</Button></Link>
+              <Link to="/orders"><Button variant="outline" className="w-full justify-start gap-2"><FileText className="h-4 w-4" /> Журнал приказов</Button></Link>
+              <Link to="/ai-chat"><Button variant="outline" className="w-full justify-start gap-2"><Bot className="h-4 w-4" /> AI-чат</Button></Link>
               <Link to="/chats"><Button variant="outline" className="w-full justify-start gap-2"><MessageSquare className="h-4 w-4" /> Чаты учителей</Button></Link>
             </div>
           </Card>
