@@ -45,7 +45,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       <div className="flex min-h-screen w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-xl">
+          <header className="sticky top-0 z-40 flex h-16 items-center gap-3 px-4 glass-nav">
             <SidebarTrigger className="text-foreground" />
             <div className="flex-1 flex items-center gap-3 max-w-xl">
               <div className="relative w-full">

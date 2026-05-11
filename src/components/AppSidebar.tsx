@@ -67,7 +67,7 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div>
-              <div className="font-display text-lg font-bold text-sidebar-foreground">Mektep AI</div>
+              <div className="font-display text-lg font-bold text-sidebar-foreground">AISSchool</div>
               <div className="text-[11px] text-sidebar-foreground/60">Актобе · школа</div>
             </div>
           )}

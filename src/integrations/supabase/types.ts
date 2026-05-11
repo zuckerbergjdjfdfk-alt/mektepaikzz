@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_profile: {
+        Row: {
+          full_name: string | null
+          id: string
+          key: string
+          metadata: Json | null
+          phone: string | null
+          updated_at: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          full_name?: string | null
+          id?: string
+          key: string
+          metadata?: Json | null
+          phone?: string | null
+          updated_at?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          full_name?: string | null
+          id?: string
+          key?: string
+          metadata?: Json | null
+          phone?: string | null
+          updated_at?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       attendance: {
         Row: {
           absent_count: number
@@ -169,37 +199,61 @@ export type Database = {
       }
       generated_orders: {
         Row: {
+          absence_id: string | null
           content_md: string
           created_at: string | null
           created_by: string | null
           id: string
+          incident_id: string | null
           metadata: Json | null
+          order_date: string | null
+          order_no: string | null
+          parent_order_id: string | null
+          pdf_url_current: string | null
+          pdf_url_original: string | null
           status: string | null
           template_id: string | null
           title: string
           updated_at: string | null
+          version: number
         }
         Insert: {
+          absence_id?: string | null
           content_md: string
           created_at?: string | null
           created_by?: string | null
           id?: string
+          incident_id?: string | null
           metadata?: Json | null
+          order_date?: string | null
+          order_no?: string | null
+          parent_order_id?: string | null
+          pdf_url_current?: string | null
+          pdf_url_original?: string | null
           status?: string | null
           template_id?: string | null
           title: string
           updated_at?: string | null
+          version?: number
         }
         Update: {
+          absence_id?: string | null
           content_md?: string
           created_at?: string | null
           created_by?: string | null
           id?: string
+          incident_id?: string | null
           metadata?: Json | null
+          order_date?: string | null
+          order_no?: string | null
+          parent_order_id?: string | null
+          pdf_url_current?: string | null
+          pdf_url_original?: string | null
           status?: string | null
           template_id?: string | null
           title?: string
           updated_at?: string | null
+          version?: number
         }
         Relationships: [
           {
@@ -207,6 +261,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_orders_parent_order_id_fkey"
+            columns: ["parent_order_id"]
+            isOneToOne: false
+            referencedRelation: "generated_orders"
             referencedColumns: ["id"]
           },
           {
@@ -366,6 +427,44 @@ export type Database = {
         }
         Relationships: []
       }
+      order_versions: {
+        Row: {
+          content_md: string
+          created_at: string | null
+          id: string
+          note: string | null
+          order_id: string
+          pdf_url: string | null
+          version: number
+        }
+        Insert: {
+          content_md: string
+          created_at?: string | null
+          id?: string
+          note?: string | null
+          order_id: string
+          pdf_url?: string | null
+          version: number
+        }
+        Update: {
+          content_md?: string
+          created_at?: string | null
+          id?: string
+          note?: string | null
+          order_id?: string
+          pdf_url?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_versions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "generated_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rooms: {
         Row: {
           capacity: number | null
@@ -395,6 +494,7 @@ export type Database = {
       }
       schedule_slots: {
         Row: {
+          absence_id: string | null
           class_id: string | null
           created_at: string | null
           day_of_week: number
@@ -406,10 +506,12 @@ export type Database = {
           period: number
           room_id: string | null
           subject_id: string | null
+          substitution_order_id: string | null
           teacher_id: string | null
           week_starting: string | null
         }
         Insert: {
+          absence_id?: string | null
           class_id?: string | null
           created_at?: string | null
           day_of_week: number
@@ -421,10 +523,12 @@ export type Database = {
           period: number
           room_id?: string | null
           subject_id?: string | null
+          substitution_order_id?: string | null
           teacher_id?: string | null
           week_starting?: string | null
         }
         Update: {
+          absence_id?: string | null
           class_id?: string | null
           created_at?: string | null
           day_of_week?: number
@@ -436,10 +540,18 @@ export type Database = {
           period?: number
           room_id?: string | null
           subject_id?: string | null
+          substitution_order_id?: string | null
           teacher_id?: string | null
           week_starting?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "schedule_slots_absence_id_fkey"
+            columns: ["absence_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_absences"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "schedule_slots_class_id_fkey"
             columns: ["class_id"]
@@ -466,6 +578,13 @@ export type Database = {
             columns: ["subject_id"]
             isOneToOne: false
             referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_slots_substitution_order_id_fkey"
+            columns: ["substitution_order_id"]
+            isOneToOne: false
+            referencedRelation: "generated_orders"
             referencedColumns: ["id"]
           },
           {
@@ -605,6 +724,53 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teacher_absences: {
+        Row: {
+          absence_date: string | null
+          created_at: string | null
+          id: string
+          order_id: string | null
+          reason: string | null
+          source: string | null
+          starts_at: string | null
+          substitutions: Json | null
+          teacher_id: string | null
+          teacher_name: string | null
+        }
+        Insert: {
+          absence_date?: string | null
+          created_at?: string | null
+          id?: string
+          order_id?: string | null
+          reason?: string | null
+          source?: string | null
+          starts_at?: string | null
+          substitutions?: Json | null
+          teacher_id?: string | null
+          teacher_name?: string | null
+        }
+        Update: {
+          absence_date?: string | null
+          created_at?: string | null
+          id?: string
+          order_id?: string | null
+          reason?: string | null
+          source?: string | null
+          starts_at?: string | null
+          substitutions?: Json | null
+          teacher_id?: string | null
+          teacher_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_absences_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "generated_orders"
             referencedColumns: ["id"]
           },
         ]
