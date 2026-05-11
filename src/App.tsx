@@ -22,44 +22,50 @@ import TasksPage from "./pages/TasksPage.tsx";
 import SettingsPage from "./pages/SettingsPage.tsx";
 import ProfilePage from "./pages/ProfilePage.tsx";
 import { SplashScreen } from "./components/SplashScreen.tsx";
+import { ThemeProvider } from "./lib/theme.tsx";
+import { I18nProvider } from "./lib/i18n.tsx";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem("mektep_splash_seen"));
+  const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem("aiss_splash_seen"));
   const dismiss = () => {
-    sessionStorage.setItem("mektep_splash_seen", "1");
+    sessionStorage.setItem("aiss_splash_seen", "1");
     setShowSplash(false);
   };
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner position="top-right" richColors />
-        <AnimatePresence>{showSplash && <SplashScreen onDone={dismiss} />}</AnimatePresence>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/schedule" element={<SchedulePage />} />
-            <Route path="/ai-chat" element={<AIChatPage />} />
-            <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/substitutions" element={<SubstitutionsPage />} />
-            <Route path="/incidents" element={<IncidentsPage />} />
-            <Route path="/chats" element={<ChatsPage />} />
-            <Route path="/nfc" element={<NfcPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/staff" element={<StaffPage />} />
-            <Route path="/classes" element={<ClassesPage />} />
-            <Route path="/attendance" element={<AttendancePage />} />
-            <Route path="/tasks" element={<TasksPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <I18nProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner position="top-right" richColors />
+            <AnimatePresence>{showSplash && <SplashScreen onDone={dismiss} />}</AnimatePresence>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/schedule" element={<SchedulePage />} />
+                <Route path="/ai-chat" element={<AIChatPage />} />
+                <Route path="/orders" element={<OrdersPage />} />
+                <Route path="/substitutions" element={<SubstitutionsPage />} />
+                <Route path="/incidents" element={<IncidentsPage />} />
+                <Route path="/chats" element={<ChatsPage />} />
+                <Route path="/nfc" element={<NfcPage />} />
+                <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/staff" element={<StaffPage />} />
+                <Route path="/classes" element={<ClassesPage />} />
+                <Route path="/attendance" element={<AttendancePage />} />
+                <Route path="/tasks" element={<TasksPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </QueryClientProvider>
+      </I18nProvider>
+    </ThemeProvider>
   );
 };
 
