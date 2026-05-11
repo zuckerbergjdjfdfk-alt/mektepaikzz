@@ -21,7 +21,13 @@ Deno.serve(async (req) => {
 
     const r = await fetch(`${TG_API}/getUpdates?offset=${offset + 1}&timeout=20&allowed_updates=["message"]`);
     const data = await r.json();
-    if (!data.ok) throw new Error(JSON.stringify(data));
+    if (!data.ok) {
+      // 409 conflict = webhook is set or another poller running. Don't crash UI.
+      if (data.error_code === 409) {
+        return new Response(JSON.stringify({ ok: true, conflict: true, processed: 0 }), { headers: { ...cors, "Content-Type": "application/json" } });
+      }
+      throw new Error(JSON.stringify(data));
+    }
 
     let lastId = offset;
     let processed = 0;
