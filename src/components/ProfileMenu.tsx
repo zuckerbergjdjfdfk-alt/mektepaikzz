@@ -1,10 +1,15 @@
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Crown, LogOut, MapPin, Settings, Shield, UserCircle2 } from "lucide-react";
+import { Crown, LogOut, MapPin, Settings, Shield, UserCircle2, Moon, Sun, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useTheme } from "@/lib/theme";
+import { useI18n } from "@/lib/i18n";
 
 export const ProfileMenu = () => {
+  const { theme, toggle } = useTheme();
+  const { lang, setLang, t } = useI18n();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -15,12 +20,12 @@ export const ProfileMenu = () => {
           <div className="text-left hidden md:block">
             <div className="text-sm font-semibold leading-tight">Айгуль С.</div>
             <div className="text-[10px] text-muted-foreground leading-tight flex items-center gap-1">
-              <Crown className="h-2.5 w-2.5 text-secondary" /> Директор
+              <Crown className="h-2.5 w-2.5 text-secondary" /> {t("common.director")}
             </div>
           </div>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72">
+      <DropdownMenuContent align="end" className="w-72 glass">
         <DropdownMenuLabel className="p-3">
           <div className="flex items-center gap-3">
             <Avatar className="h-12 w-12 ring-2 ring-secondary">
@@ -28,7 +33,7 @@ export const ProfileMenu = () => {
             </Avatar>
             <div>
               <div className="font-display font-bold">Айгуль Серикбаевна</div>
-              <div className="text-xs text-muted-foreground">Директор Mektep AI</div>
+              <div className="text-xs text-muted-foreground">{t("common.director")} AISSchool</div>
               <div className="text-[10px] text-secondary mt-0.5 flex items-center gap-1">
                 <Shield className="h-2.5 w-2.5" /> Полный доступ
               </div>
@@ -38,19 +43,32 @@ export const ProfileMenu = () => {
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link to="/profile" className="cursor-pointer">
-            <UserCircle2 className="h-4 w-4 mr-2" /> Профиль директора
+            <UserCircle2 className="h-4 w-4 mr-2" /> Профиль
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link to="/settings" className="cursor-pointer">
-            <Settings className="h-4 w-4 mr-2" /> Настройки системы
+            <Settings className="h-4 w-4 mr-2" /> Настройки
           </Link>
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={toggle}>
+          {theme === "dark" ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
+          {t("common.theme")}: {theme === "dark" ? t("common.light") : t("common.dark")}
+        </DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Languages className="h-4 w-4 mr-2" /> {t("common.language")}: {lang === "ru" ? "Русский" : "Қазақша"}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="glass">
+            <DropdownMenuRadioGroup value={lang} onValueChange={(v) => setLang(v as "ru" | "kk")}>
+              <DropdownMenuRadioItem value="ru">Русский</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="kk">Қазақша</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuItem>
           <MapPin className="h-4 w-4 mr-2" /> Актобе, Казахстан
-        </DropdownMenuItem>
-        <DropdownMenuItem>
-          <Crown className="h-4 w-4 mr-2" /> Стаж: 18 лет · Роль: директор
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="text-destructive">
