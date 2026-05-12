@@ -50,8 +50,8 @@ const SettingsPage = () => {
 
   const testSend = async () => {
     if (!testPhone) { toast.error("Введите номер (например 77001234567)"); return; }
-    const { data, error } = await supabase.functions.invoke("whatsapp-config?action=test_send", {
-      body: { phone: testPhone, message: "✅ AISSchool: тест связи. Если вы это видите — интеграция работает." },
+    const { data, error } = await supabase.functions.invoke("whatsapp-config", {
+      body: { action: "test_send", phone: testPhone, message: "✅ AISSchool: тест связи. Если вы это видите — интеграция работает." },
     });
     if (error || !data?.ok) { toast.error("Ошибка отправки: " + (data?.response?.error || error?.message || "?")); return; }
     toast.success("Сообщение отправлено!");
