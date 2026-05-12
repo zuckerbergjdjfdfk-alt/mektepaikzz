@@ -8,9 +8,17 @@ const cors = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
-    createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const instanceId = Deno.env.get("GREEN_API_INSTANCE_ID")!;
-    const token = Deno.env.get("GREEN_API_TOKEN")!;
+    const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: prof } = await sb.from("app_profile").select("metadata").eq("key", "default").maybeSingle();
+    const cfg = prof?.metadata?.whatsapp || {};
+    const instanceId = cfg.instance_id || Deno.env.get("GREEN_API_INSTANCE_ID") || "";
+    const token = cfg.token || Deno.env.get("GREEN_API_TOKEN") || "";
+    if (!instanceId || !token) {
+      return new Response(JSON.stringify({ ok: false, configured: false, processed: 0 }), {
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+
     const backendUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
@@ -40,8 +48,7 @@ Deno.serve(async (req) => {
     });
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...cors, "Content-Type": "application/json" },
+      status: 500, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 });
