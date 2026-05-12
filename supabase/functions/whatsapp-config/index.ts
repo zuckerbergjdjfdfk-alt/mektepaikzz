@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
       }), { headers: { ...cors, "Content-Type": "application/json" } });
     }
 
-    const body = await req.json().catch(() => ({}));
+    // body already parsed above
 
     if (action === "save") {
       const { instance_id, token } = body;
