@@ -23,7 +23,7 @@ const SettingsPage = () => {
 
   const refresh = async () => {
     setLoading(true);
-    const { data, error } = await supabase.functions.invoke("whatsapp-config", { body: {}, method: "GET" as any });
+    const { data, error } = await supabase.functions.invoke("whatsapp-config", { body: { action: "status" } });
     if (!error) setStatus(data);
     setLoading(false);
   };
