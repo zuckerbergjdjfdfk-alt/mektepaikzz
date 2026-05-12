@@ -40,7 +40,7 @@ const ProfilePage = () => {
   const saveWa = async () => {
     const { error } = await supabase.from("app_profile").upsert({
       key: "director",
-      full_name: profile?.full_name || "Айгуль Серикбаевна",
+      full_name: profile?.full_name || "Бекзат Сапаргалиевна",
       whatsapp: wa || null,
     }, { onConflict: "key" });
     if (error) return toast.error(error.message);
@@ -61,10 +61,10 @@ const ProfilePage = () => {
           <Card className="p-6 glass lg:col-span-1">
             <div className="flex flex-col items-center text-center gap-4">
               <Avatar className="h-24 w-24 ring-4 ring-secondary/30">
-                <AvatarFallback className="bg-gradient-gold text-primary-foreground text-2xl font-bold">АС</AvatarFallback>
+                <AvatarFallback className="bg-gradient-gold text-primary-foreground text-2xl font-bold">БС</AvatarFallback>
               </Avatar>
               <div>
-                <div className="font-display text-2xl font-bold">Айгуль Серикбаевна</div>
+                <div className="font-display text-2xl font-bold">Бекзат Сапаргалиевна</div>
                 <div className="text-muted-foreground">Директор · AISSchool</div>
               </div>
               <Badge className="bg-secondary text-secondary-foreground gap-1">
