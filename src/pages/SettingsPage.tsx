@@ -42,7 +42,7 @@ const SettingsPage = () => {
   };
 
   const setupWebhook = async () => {
-    const { data, error } = await supabase.functions.invoke("whatsapp-config?action=set_webhook", { body: {} });
+    const { data, error } = await supabase.functions.invoke("whatsapp-config", { body: { action: "set_webhook" } });
     if (error || !data?.ok) { toast.error("Ошибка настройки webhook"); return; }
     toast.success("Webhook привязан в Green API");
     await refresh();
