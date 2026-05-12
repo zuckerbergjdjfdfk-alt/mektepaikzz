@@ -23,7 +23,9 @@ Deno.serve(async (req) => {
   try {
     const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const url = new URL(req.url);
-    const action = url.searchParams.get("action") || (req.method === "GET" ? "status" : "save");
+    let body: any = {};
+    if (req.method !== "GET") { try { body = await req.json(); } catch {} }
+    const action = url.searchParams.get("action") || body.action || (req.method === "GET" ? "status" : "save");
 
     if (action === "status") {
       const cfg = await loadConfig(sb);
