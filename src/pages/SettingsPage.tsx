@@ -33,7 +33,7 @@ const SettingsPage = () => {
   const save = async () => {
     if (!instanceId || !token) { toast.error("Введите Instance ID и API Token"); return; }
     setSaving(true);
-    const { error } = await supabase.functions.invoke("whatsapp-config?action=save", { body: { instance_id: instanceId, token } });
+    const { error } = await supabase.functions.invoke("whatsapp-config", { body: { action: "save", instance_id: instanceId, token } });
     setSaving(false);
     if (error) { toast.error("Ошибка сохранения"); return; }
     toast.success("Сохранено. Проверяем подключение...");
