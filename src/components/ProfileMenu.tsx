@@ -15,10 +15,10 @@ export const ProfileMenu = () => {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="gap-2 h-10 px-2">
           <Avatar className="h-8 w-8 ring-2 ring-secondary/40">
-            <AvatarFallback className="bg-gradient-gold text-primary-foreground font-bold text-xs">АС</AvatarFallback>
+            <AvatarFallback className="bg-gradient-gold text-primary-foreground font-bold text-xs">БС</AvatarFallback>
           </Avatar>
           <div className="text-left hidden md:block">
-            <div className="text-sm font-semibold leading-tight">Айгуль С.</div>
+            <div className="text-sm font-semibold leading-tight">Бекзат С.</div>
             <div className="text-[10px] text-muted-foreground leading-tight flex items-center gap-1">
               <Crown className="h-2.5 w-2.5 text-secondary" /> {t("common.director")}
             </div>
@@ -29,10 +29,10 @@ export const ProfileMenu = () => {
         <DropdownMenuLabel className="p-3">
           <div className="flex items-center gap-3">
             <Avatar className="h-12 w-12 ring-2 ring-secondary">
-              <AvatarFallback className="bg-gradient-gold text-primary-foreground font-bold">АС</AvatarFallback>
+              <AvatarFallback className="bg-gradient-gold text-primary-foreground font-bold">БС</AvatarFallback>
             </Avatar>
             <div>
-              <div className="font-display font-bold">Айгуль Серикбаевна</div>
+              <div className="font-display font-bold">Бекзат Сапаргалиевна</div>
               <div className="text-xs text-muted-foreground">{t("common.director")} AISSchool</div>
               <div className="text-[10px] text-secondary mt-0.5 flex items-center gap-1">
                 <Shield className="h-2.5 w-2.5" /> Полный доступ

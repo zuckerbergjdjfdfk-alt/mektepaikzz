@@ -2,114 +2,137 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Aqbobek Design System — казахстанский премиум: глубокий синий + золото степи */
+/* AISSchool — iOS 26 Liquid Glass design system */
 
 @layer base {
   :root {
-    --background: 215 35% 97%;
-    --foreground: 220 50% 12%;
+    /* Soft pearl background with subtle blue tint (iOS 26 light) */
+    --background: 220 40% 98%;
+    --foreground: 222 30% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 50% 12%;
+    --card-foreground: 222 30% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 50% 12%;
+    --popover-foreground: 222 30% 12%;
 
-    /* Primary — глубокий казахстанский синий (флаг) */
-    --primary: 200 95% 32%;
-    --primary-glow: 195 88% 48%;
+    /* iOS systemBlue */
+    --primary: 211 100% 50%;
+    --primary-glow: 200 100% 60%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary — золото степи */
-    --secondary: 42 88% 55%;
-    --secondary-foreground: 220 50% 12%;
+    /* iOS systemYellow / warm accent */
+    --secondary: 42 95% 58%;
+    --secondary-foreground: 222 30% 12%;
 
-    --muted: 215 25% 94%;
-    --muted-foreground: 220 15% 42%;
+    --muted: 220 25% 95%;
+    --muted-foreground: 220 12% 45%;
 
-    --accent: 195 88% 48%;
+    --accent: 280 85% 62%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 75% 55%;
+    --destructive: 4 90% 58%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 145 65% 42%;
+    --success: 142 70% 45%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 35 95% 55%;
-    --warning-foreground: 220 50% 12%;
+    --warning: 32 95% 55%;
+    --warning-foreground: 222 30% 12%;
 
-    --border: 215 25% 88%;
-    --input: 215 25% 90%;
-    --ring: 200 95% 32%;
+    --border: 220 20% 88%;
+    --input: 220 20% 92%;
+    --ring: 211 100% 50%;
 
-    --radius: 0.875rem;
+    --radius: 1.25rem;
 
-    /* Heatmap */
     --heat-0: 145 65% 88%;
     --heat-1: 145 65% 70%;
     --heat-2: 42 88% 70%;
     --heat-3: 25 90% 60%;
     --heat-4: 0 75% 55%;
 
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(200 95% 32%), hsl(195 88% 48%));
-    --gradient-gold: linear-gradient(135deg, hsl(42 88% 55%), hsl(35 95% 62%));
-    --gradient-hero: linear-gradient(135deg, hsl(220 70% 18%) 0%, hsl(200 95% 32%) 50%, hsl(195 88% 48%) 100%);
-    --gradient-mesh: radial-gradient(at 20% 0%, hsl(200 95% 32% / 0.15) 0px, transparent 50%),
-                     radial-gradient(at 80% 100%, hsl(42 88% 55% / 0.12) 0px, transparent 50%);
-    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(215 35% 98%) 100%);
+    /* Liquid gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(211 100% 55%), hsl(280 85% 62%));
+    --gradient-gold: linear-gradient(135deg, hsl(42 95% 58%), hsl(25 95% 60%));
+    --gradient-hero: linear-gradient(135deg, hsl(211 100% 60%) 0%, hsl(260 90% 65%) 50%, hsl(320 85% 65%) 100%);
+    --gradient-mesh:
+      radial-gradient(at 12% 8%, hsl(211 100% 60% / 0.22) 0px, transparent 45%),
+      radial-gradient(at 88% 12%, hsl(280 90% 65% / 0.18) 0px, transparent 45%),
+      radial-gradient(at 50% 100%, hsl(42 95% 60% / 0.18) 0px, transparent 50%);
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100% / 0.85) 0%, hsl(220 35% 98% / 0.7) 100%);
 
-    /* Shadows */
     --shadow-sm: 0 1px 2px 0 hsl(220 50% 12% / 0.04);
-    --shadow-md: 0 4px 12px -2px hsl(220 50% 12% / 0.08);
-    --shadow-lg: 0 12px 32px -8px hsl(200 95% 32% / 0.18);
-    --shadow-glow: 0 0 40px hsl(195 88% 48% / 0.35);
-    --shadow-gold: 0 8px 24px -6px hsl(42 88% 55% / 0.45);
+    --shadow-md: 0 8px 24px -8px hsl(220 50% 20% / 0.12);
+    --shadow-lg: 0 24px 60px -16px hsl(211 100% 30% / 0.22);
+    --shadow-glow: 0 0 60px hsl(211 100% 60% / 0.35);
+    --shadow-gold: 0 12px 40px -10px hsl(42 95% 55% / 0.45);
+    --shadow-glass: 0 8px 32px hsl(220 50% 20% / 0.08), inset 0 1px 0 hsl(0 0% 100% / 0.6);
 
-    /* Sidebar */
-    --sidebar-background: 220 60% 10%;
-    --sidebar-foreground: 215 25% 88%;
-    --sidebar-primary: 195 88% 48%;
+    --sidebar-background: 220 40% 98%;
+    --sidebar-foreground: 222 25% 25%;
+    --sidebar-primary: 211 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 50% 16%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 220 40% 18%;
-    --sidebar-ring: 195 88% 48%;
+    --sidebar-accent: 220 30% 94%;
+    --sidebar-accent-foreground: 222 30% 12%;
+    --sidebar-border: 220 20% 88%;
+    --sidebar-ring: 211 100% 50%;
 
     --transition-smooth: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .dark {
-    --background: 220 50% 8%;
-    --foreground: 215 25% 92%;
-    --card: 220 50% 11%;
-    --card-foreground: 215 25% 92%;
-    --popover: 220 50% 11%;
-    --popover-foreground: 215 25% 92%;
-    --primary: 195 88% 55%;
-    --primary-foreground: 220 50% 8%;
-    --secondary: 42 88% 55%;
-    --secondary-foreground: 220 50% 8%;
-    --muted: 220 35% 16%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 195 88% 48%;
+    /* iOS 26 dark — deep graphite, not pure black */
+    --background: 224 30% 7%;
+    --foreground: 210 25% 96%;
+    --card: 224 25% 11%;
+    --card-foreground: 210 25% 96%;
+    --popover: 224 25% 11%;
+    --popover-foreground: 210 25% 96%;
+    --primary: 211 100% 60%;
+    --primary-glow: 200 100% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 42 90% 60%;
+    --secondary-foreground: 222 30% 10%;
+    --muted: 224 20% 16%;
+    --muted-foreground: 215 18% 68%;
+    --accent: 280 85% 68%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 75% 55%;
+    --destructive: 4 85% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 35% 18%;
-    --input: 220 35% 18%;
-    --ring: 195 88% 55%;
+    --border: 224 20% 20%;
+    --input: 224 20% 18%;
+    --ring: 211 100% 60%;
+
+    --gradient-mesh:
+      radial-gradient(at 12% 8%, hsl(211 100% 50% / 0.28) 0px, transparent 45%),
+      radial-gradient(at 88% 12%, hsl(280 85% 55% / 0.22) 0px, transparent 45%),
+      radial-gradient(at 50% 100%, hsl(42 90% 50% / 0.18) 0px, transparent 50%);
+    --gradient-card: linear-gradient(135deg, hsl(224 25% 14% / 0.7) 0%, hsl(224 30% 10% / 0.55) 100%);
+    --shadow-glass: 0 8px 32px hsl(0 0% 0% / 0.4), inset 0 1px 0 hsl(0 0% 100% / 0.06);
+
+    --sidebar-background: 224 30% 8%;
+    --sidebar-foreground: 215 20% 80%;
+    --sidebar-accent: 224 25% 14%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 224 20% 18%;
   }
 }
 
 @layer base {
   * { @apply border-border; }
+  html, body { @apply bg-background text-foreground; }
   body {
-    @apply bg-background text-foreground;
     font-feature-settings: "cv11", "ss01", "ss03";
+    background-image: var(--gradient-mesh);
+    background-attachment: fixed;
+    background-size: 100% 100%;
+    -webkit-font-smoothing: antialiased;
   }
-  h1, h2, h3, h4 { font-family: 'Manrope', system-ui, sans-serif; letter-spacing: -0.02em; }
+  h1, h2, h3, h4 {
+    font-family: 'Manrope', system-ui, sans-serif;
+    letter-spacing: -0.025em;
+  }
 }
 
 @layer utilities {
@@ -121,30 +144,62 @@
   .shadow-elegant { box-shadow: var(--shadow-lg); }
   .shadow-glow { box-shadow: var(--shadow-glow); }
   .shadow-gold { box-shadow: var(--shadow-gold); }
+  .shadow-glass { box-shadow: var(--shadow-glass); }
   .text-balance { text-wrap: balance; }
 
   .ornament-kz {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cpath d='M20 4 L24 16 L36 20 L24 24 L20 36 L16 24 L4 20 L16 16 Z' fill='none' stroke='%23eab308' stroke-width='0.6' opacity='0.25'/%3E%3C/svg%3E");
   }
 
-  /* Glass minimalism */
+  /* iOS 26 Liquid Glass */
   .glass {
     background: hsl(var(--card) / 0.55);
-    backdrop-filter: blur(24px) saturate(160%);
-    -webkit-backdrop-filter: blur(24px) saturate(160%);
-    border: 1px solid hsl(var(--border) / 0.4);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid hsl(var(--border) / 0.45);
+    box-shadow: var(--shadow-glass);
+    border-radius: var(--radius);
   }
   .glass-soft {
     background: hsl(var(--card) / 0.35);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid hsl(var(--border) / 0.25);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid hsl(var(--border) / 0.3);
+    border-radius: var(--radius);
+  }
+  .glass-strong {
+    background: hsl(var(--card) / 0.78);
+    backdrop-filter: blur(36px) saturate(200%);
+    -webkit-backdrop-filter: blur(36px) saturate(200%);
+    border: 1px solid hsl(var(--border) / 0.5);
+    box-shadow: var(--shadow-glass), var(--shadow-md);
+    border-radius: var(--radius);
   }
   .glass-nav {
-    background: hsl(var(--background) / 0.65);
+    background: hsl(var(--background) / 0.6);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    border-bottom: 1px solid hsl(var(--border) / 0.4);
+  }
+  .glass-pill {
+    background: hsl(var(--card) / 0.6);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border-bottom: 1px solid hsl(var(--border) / 0.4);
+    border: 1px solid hsl(var(--border) / 0.5);
+    border-radius: 9999px;
+  }
+  /* Specular highlight overlay (iOS liquid sheen) */
+  .glass-sheen {
+    position: relative;
+    overflow: hidden;
+  }
+  .glass-sheen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, hsl(0 0% 100% / 0.18) 0%, hsl(0 0% 100% / 0) 38%, hsl(0 0% 100% / 0) 62%, hsl(0 0% 100% / 0.08) 100%);
+    pointer-events: none;
+    border-radius: inherit;
   }
 }
 
@@ -154,7 +209,12 @@
 }
 @keyframes glow-pulse {
   0%, 100% { box-shadow: 0 0 20px hsl(var(--primary-glow) / 0.4); }
-  50% { box-shadow: 0 0 40px hsl(var(--primary-glow) / 0.7); }
+  50% { box-shadow: 0 0 50px hsl(var(--primary-glow) / 0.7); }
+}
+@keyframes liquid-float {
+  0%, 100% { transform: translate3d(0,0,0) scale(1); }
+  50% { transform: translate3d(0,-6px,0) scale(1.01); }
 }
 .animate-fade-up { animation: fade-up 0.5s var(--transition-smooth) both; }
-.animate-glow { animation: glow-pulse 2s ease-in-out infinite; }
+.animate-glow { animation: glow-pulse 2.4s ease-in-out infinite; }
+.animate-liquid { animation: liquid-float 6s ease-in-out infinite; }

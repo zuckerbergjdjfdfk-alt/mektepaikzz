@@ -1,0 +1,2 @@
+UPDATE public.app_profile SET full_name = 'Бекзат Сапаргалиевна' WHERE key = 'director';
+INSERT INTO public.app_profile (key, full_name) SELECT 'director', 'Бекзат Сапаргалиевна' WHERE NOT EXISTS (SELECT 1 FROM public.app_profile WHERE key='director');

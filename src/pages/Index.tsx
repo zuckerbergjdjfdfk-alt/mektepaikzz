@@ -69,7 +69,7 @@ const Index = () => {
                 <span>AISSchool · {new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })}</span>
               </div>
               <h1 className="font-display text-4xl lg:text-5xl font-extrabold text-balance">
-                Доброе утро, <span className="text-secondary">Айгуль Серикбаевна</span>
+                Доброе утро, <span className="text-secondary">Бекзат Сапаргалиевна</span>
               </h1>
               <p className="mt-3 text-lg opacity-90 max-w-2xl">
                 Сегодня в школе <b>{stats.present}</b> учеников · отсутствуют <b>{stats.absent}</b>.

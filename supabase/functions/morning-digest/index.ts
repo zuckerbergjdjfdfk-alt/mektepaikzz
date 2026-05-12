@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
           messages: [
-            { role: "system", content: "Ты AI-завуч Mektep AI. Сделай краткий профессиональный утренний свод для директора Айгуль Серикбаевны на русском языке. Используй markdown. Будь конкретен, выдели риски красным эмодзи, успехи зелёным. 6-10 строк." },
+            { role: "system", content: "Ты AI-завуч Mektep AI. Сделай краткий профессиональный утренний свод для директора Бекзат Сапаргалиевны на русском языке. Используй markdown. Будь конкретен, выдели риски красным эмодзи, успехи зелёным. 6-10 строк." },
             { role: "user", content: `Данные на ${today}:
 - Учеников всего: ${totalStudents}, в школе: ${totalPresent}, болеют: ${totalSick}, отсутствуют: ${totalAbsent}
 - Явка: ${totalStudents ? Math.round((totalPresent / totalStudents) * 100) : 0}%

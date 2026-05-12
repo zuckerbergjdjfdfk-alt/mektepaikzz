@@ -15,7 +15,7 @@ type Msg = { role: "user" | "assistant"; content: string; orderCard?: { order_id
 const AIChatPage = () => {
   const navigate = useNavigate();
   const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", content: "Здравствуйте, Айгуль Серикбаевна! 👋\n\nЯ AI-завуч AISSchool. Могу собрать утренний свод, сгенерировать расписание, составить и оформить приказ в PDF, найти замены." },
+    { role: "assistant", content: "Здравствуйте, Бекзат Сапаргалиевна! 👋\n\nЯ AI-завуч AISSchool. Могу собрать утренний свод, сгенерировать расписание, составить и оформить приказ в PDF, найти замены." },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
