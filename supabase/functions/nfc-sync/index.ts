@@ -62,10 +62,12 @@ Deno.serve(async (req) => {
       lastAt = scannedAt;
     }
 
-    await own.from("app_profile").upsert(
-      { key: "nfc_sync_cursor", metadata: { last_at: lastAt, updated_at: new Date().toISOString() } },
-      { onConflict: "key" }
-    );
+    const cursorPayload = { metadata: { last_at: lastAt, updated_at: new Date().toISOString() } };
+    if (cursorRow) {
+      await own.from("app_profile").update(cursorPayload).eq("key", "nfc_sync_cursor");
+    } else {
+      await own.from("app_profile").insert({ key: "nfc_sync_cursor", ...cursorPayload });
+    }
 
     return new Response(
       JSON.stringify({ ok: true, fetched: rows?.length || 0, inserted, last_at: lastAt }),
