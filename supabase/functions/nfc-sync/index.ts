@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
       .gt("scanned_at", since)
       .order("scanned_at", { ascending: true })
       .limit(500);
-    if (error) throw error;
+    if (error) throw new Error(`External fetch failed (table="${EXT_TABLE}"): ${error.message || JSON.stringify(error)}`);
 
     let inserted = 0;
     let lastAt = since;
