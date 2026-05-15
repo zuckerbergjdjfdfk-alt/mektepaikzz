@@ -5,72 +5,20 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function handleTeacherAbsence(sb: any, parsed: any, senderName: string, text: string) {
-  const name = (parsed.teacher_name || senderName || "").toLowerCase();
-  const first = name.split(/\s+/).filter(Boolean)[0] || name;
-  const { data: teachers } = await sb.from("staff").select("id, full_name").eq("role", "teacher");
-  const teacher = teachers?.find((t: any) => t.full_name.toLowerCase().includes(first));
-  if (!teacher) return { reply: `⚠️ Не нашёл учителя "${parsed.teacher_name || senderName}" в базе.` };
-
+async function handleTeacherAbsence(_sb: any, parsed: any, senderName: string, _text: string) {
   const backendUrl = Deno.env.get("SUPABASE_URL")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-  const today = new Date().toISOString().slice(0, 10);
-
-  const subRes = await fetch(`${backendUrl}/functions/v1/smart-substitute`, {
+  const res = await fetch(`${backendUrl}/functions/v1/handle-absence`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
-    body: JSON.stringify({ teacher_id: teacher.id }),
+    body: JSON.stringify({ teacher_name: parsed.teacher_name || senderName, reason: parsed.reason, source: "whatsapp" }),
   });
-  const subData = await subRes.json();
-  const substitutions = subData.substitutions || [];
-
-  const { data: absence } = await sb.from("teacher_absences").insert({
-    teacher_id: teacher.id,
-    teacher_name: teacher.full_name,
-    reason: parsed.reason || "не указана",
-    absence_date: today,
-    source: "whatsapp",
-    substitutions,
-  }).select().single();
-
-  let orderId: string | null = null;
-  let pdfUrl: string | null = null;
-  try {
-    const subsLines = substitutions.map((s: any, i: number) =>
-      `${i + 1}. ${s.period} урок, класс ${s.class_name} (${s.subject}) — ${s.substitute ? `замещает ${s.substitute}` : "замена не назначена"}.`
-    ).join("\n");
-    const orderText = `Создай приказ о замещении уроков. Учитель: ${teacher.full_name}. Причина: ${parsed.reason || "по болезни"}. Дата: ${today}. Замены:\n${subsLines}`;
-    const orderRes = await fetch(`${backendUrl}/functions/v1/order-from-text`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
-      body: JSON.stringify({ text: orderText }),
-    });
-    const orderData = await orderRes.json();
-    orderId = orderData.order_id || null;
-    pdfUrl = orderData.pdf_url || null;
-
-    if (orderId) {
-      await sb.from("generated_orders").update({ absence_id: absence.id }).eq("id", orderId);
-      await sb.from("teacher_absences").update({ order_id: orderId }).eq("id", absence.id);
-      const lessonIds = substitutions.map((s: any) => s.lesson_id).filter(Boolean);
-      if (lessonIds.length) {
-        await sb.from("schedule_slots").update({ substitution_order_id: orderId, absence_id: absence.id }).in("id", lessonIds);
-      }
-    }
-  } catch (e) { console.error("auto-order failed:", e); }
-
-  await sb.from("notifications").insert({
-    type: "teacher_absence",
-    title: `Отсутствие: ${teacher.full_name}`,
-    body: `${parsed.reason || "не указана"} · замен: ${substitutions.length}${pdfUrl ? " · приказ готов" : ""}`,
-    payload: { teacher_id: teacher.id, absence_id: absence.id, order_id: orderId, source: "whatsapp" },
-  });
-
-  const lines = substitutions.map((s: any) =>
-    s.substitute ? `• ${s.period} урок ${s.class_name} (${s.subject}) → ${s.substitute}` : `• ${s.period} урок ${s.class_name} — ⚠️ не найдена`
+  const data = await res.json();
+  if (!data.ok) return { reply: `⚠️ ${data.error || "Не удалось зарегистрировать отсутствие"}` };
+  const lines = (data.substitutions || []).map((s: any) =>
+    s.substitute ? `• ${s.period} ур. ${s.class_name} (${s.subject}) → ${s.substitute}` : `• ${s.period} ур. ${s.class_name} — ⚠️ нет замены`
   ).join("\n");
-  const reply = `🤖 Принято, ${teacher.full_name}. Причина: ${parsed.reason || "не указана"}.\n\nЗамены на сегодня:\n${lines || "Нет уроков сегодня."}${pdfUrl ? `\n\n📄 Приказ: ${pdfUrl}` : ""}`;
-  return { reply };
+  return { reply: `🤖 Принято, ${data.teacher}. Причина: ${parsed.reason || "не указана"}.\n\nЗамены:\n${lines || "Нет уроков"}${data.pdf_url ? `\n\n📄 Приказ готов` : ""}` };
 }
 
 Deno.serve(async (req) => {
