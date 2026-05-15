@@ -33,7 +33,9 @@ const VOICE_HINT = "\n\nВАЖНО: ответ голосовой — макси
 const TOOLS = [
   { type: "function", function: { name: "create_tasks", description: "Создать задачи из голосовой команды.", parameters: { type: "object", properties: { tasks: { type: "array", items: { type: "object", properties: { title: { type: "string" }, description: { type: "string" }, assignee_name: { type: "string" }, priority: { type: "string", enum: ["low", "normal", "high"] }, due_hint: { type: "string" } }, required: ["title", "assignee_name", "priority"] } } }, required: ["tasks"] } } },
   { type: "function", function: { name: "generate_schedule", description: "Сгенерировать полное расписание с лентами и балансировкой нагрузки.", parameters: { type: "object", properties: {} } } },
-  { type: "function", function: { name: "find_substitute", description: "Найти замену учителю.", parameters: { type: "object", properties: { teacher_name: { type: "string" }, day_of_week: { type: "number" } }, required: ["teacher_name"] } } },
+  { type: "function", function: { name: "find_substitute", description: "Найти замену учителю (только показать варианты, без записи).", parameters: { type: "object", properties: { teacher_name: { type: "string" }, day_of_week: { type: "number" } }, required: ["teacher_name"] } } },
+  { type: "function", function: { name: "register_teacher_absence", description: "Зарегистрировать отсутствие учителя: создаёт запись, генерирует замены, делает приказ и шлёт уведомление директору в Telegram. Используй когда говорят 'учитель X не придёт/болеет'.", parameters: { type: "object", properties: { teacher_name: { type: "string" }, reason: { type: "string" } }, required: ["teacher_name"] } } },
+  { type: "function", function: { name: "create_incident", description: "Создать инцидент (драка, поломка, ЧП и т.п.).", parameters: { type: "object", properties: { title: { type: "string" }, description: { type: "string" }, location: { type: "string" }, priority: { type: "string", enum: ["low", "normal", "high"] } }, required: ["title"] } } },
   { type: "function", function: { name: "generate_order", description: "Сгенерировать приказ по коду шаблона и полям.", parameters: { type: "object", properties: { template_code: { type: "string" }, fields: { type: "object" } }, required: ["template_code", "fields"] } } },
   { type: "function", function: { name: "morning_digest", description: "Утренний свод по школе.", parameters: { type: "object", properties: {} } } },
   { type: "function", function: { name: "send_whatsapp", description: "Отправить WhatsApp сообщение.", parameters: { type: "object", properties: { chat_id: { type: "string" }, phone: { type: "string" }, message: { type: "string" } }, required: ["message"] } } },
@@ -69,6 +71,19 @@ async function callTool(name: string, args: any, sb: any): Promise<string> {
 
   if (name === "generate_schedule") return await invoke("schedule-generator", { mode: "ai", ...(args || {}) });
   if (name === "find_substitute") return await invoke("smart-substitute", args);
+  if (name === "register_teacher_absence") return await invoke("handle-absence", { ...args, source: "voice" });
+  if (name === "create_incident") {
+    const { data } = await sb.from("incidents").insert({
+      title: args.title,
+      description: args.description || args.title,
+      location: args.location,
+      priority: args.priority || "normal",
+      source: "voice",
+      reported_by: "AI ассистент",
+    }).select().single();
+    await sb.from("notifications").insert({ type: "incident", title: "🚨 Инцидент", body: args.title, payload: { incident_id: data?.id } });
+    return JSON.stringify({ ok: true, incident_id: data?.id });
+  }
   if (name === "morning_digest") return await invoke("morning-digest");
   if (name === "send_whatsapp") return await invoke("whatsapp-send", args);
   if (name === "send_telegram") return await invoke("telegram-webhook", { action: "send", chat_id: args.chat_id, text: args.message });
